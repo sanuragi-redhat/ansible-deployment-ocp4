@@ -1,0 +1,27 @@
+---
+# HAProxy general settings
+haproxy_maxconn: 20000
+haproxy_user: haproxy
+haproxy_group: haproxy
+haproxy_stats_port: 9000
+haproxy_stats_uri: /stats
+
+# K8s API server backend
+k8s_api_servers:
+  - name: bootstrap
+    ip: 192.168.0.32
+  - name: master1
+    ip: 192.168.0.33
+  - name: master2
+    ip: 192.168.0.34
+  - name: master3
+    ip: 192.168.0.35
+k8s_api_port: 6443
+
+# OCP Machine Config Server backend
+ocp_machine_config_port: 22623
+
+# OCP HTTP/HTTPS ingress
+ocp_http_ingress_port: 80
+ocp_https_ingress_port: 443
+

@@ -1,0 +1,54 @@
+---
+- name: Configure combined registry authentication
+  hosts: quay
+  become: true
+  vars:
+    docker_auth_config: |
+      {
+        "auths": {
+          "cloud.openshift.com": {
+            "auth": "",
+            "email": "sanuragi@redhat.com"
+          },
+          "quay.io": {
+            "auth": "",
+            "email": "sanuragi@redhat.com"
+          },
+          "registry.connect.redhat.com": {
+            "auth": "",
+            "email": "sanuragi@redhat.com"
+          },
+          "registry.redhat.io": {
+            "auth": "",
+            "email": "sanuragi@redhat.com"
+          },
+          "quay-mirror.lab.redhat-workshop.in:8443": {
+            "auth": ""
+          }
+        }
+      }
+
+  tasks:
+    - name: Ensure .docker directory exists
+      ansible.builtin.file:
+        path: /root/.docker
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Deploy combined Docker authentication file
+      ansible.builtin.copy:
+        dest: /root/.docker/config.json
+        content: "{{ docker_auth_config }}"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Verify Docker authentication file
+      ansible.builtin.shell: cat /root/.docker/config.json
+      register: docker_config
+
+    - name: Debug output of Docker config
+      ansible.builtin.debug:
+        msg: "{{ docker_config.stdout_lines }}"

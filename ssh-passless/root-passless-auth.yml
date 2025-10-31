@@ -1,0 +1,48 @@
+---
+- name: Enable passwordless SSH for root
+  hosts: all
+  become: true
+  vars:
+    ssh_pub_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+     #ssh_pub_key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+    # For RSA key use: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+  tasks:
+    - name: Ensure /root/.ssh directory exists
+      ansible.builtin.file:
+        path: /root/.ssh
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Add controller public key to root's authorized_keys
+      ansible.builtin.lineinfile:
+        path: /root/.ssh/authorized_keys
+        line: "{{ ssh_pub_key }}"
+        create: yes
+        mode: '0600'
+        owner: root
+        group: root
+
+    - name: Ensure PermitRootLogin is allowed in SSHD
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin without-password'
+        state: present
+        backup: yes
+
+    - name: Ensure PasswordAuthentication is allowed (or disable if already key-only)
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication yes'
+        state: present
+
+    - name: Restart SSH service
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+      when: ansible_service_mgr == "systemd"
+

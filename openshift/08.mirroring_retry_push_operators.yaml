@@ -1,0 +1,167 @@
+---
+- name: Run OpenShift oc-mirror operations with retry on registry push failure
+  hosts: quay
+  become: true
+  vars:
+    operator_dir: "/root/ocp-operators"
+    isc_file: "/root/ocp-operators/isc.yaml"
+    mirror_output_dir: "/var/quay-ops"
+    quay_registry: "quay-mirror.lab.redhat-workshop.in:8443"
+    oc_mirror_binary: "/usr/bin/oc-mirror"
+    log_dir: "/var/log/ocp-mirror"
+    phase: "both"  # options: disk, registry, both
+    retry_limit: 3
+
+  tasks:
+    # -------------------------------
+    # PRECHECKS
+    # -------------------------------
+    - name: Ensure oc-mirror binary exists
+      ansible.builtin.stat:
+        path: "{{ oc_mirror_binary }}"
+      register: oc_mirror_check
+      failed_when: not oc_mirror_check.stat.exists
+      changed_when: false
+
+    - name: Ensure required directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      loop:
+        - "{{ log_dir }}"
+        - "{{ operator_dir }}"
+        - "{{ mirror_output_dir }}"
+
+    # -------------------------------
+    # CREATE ISC FILE
+    # -------------------------------
+    - name: Write ImageSetConfiguration file
+      ansible.builtin.copy:
+        content: |
+          kind: ImageSetConfiguration
+          apiVersion: mirror.openshift.io/v2alpha1
+          mirror:
+            platform:
+              channels:
+                - name: stable-4.19
+                  minVersion: '4.19.15'
+                  maxVersion: '4.19.15'
+                  shortestPath: true
+                  type: ocp
+            operators:
+              - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.19
+                packages:
+                  - name: kubernetes-nmstate-operator
+                    channels: [{name: stable}]
+                  - name: kubevirt-hyperconverged
+                    channels: [{name: stable}]
+                  - name: metallb-operator
+                    channels: [{name: stable}]
+                  - name: mtv-operator
+                    channels: [{name: release-v2.9}]
+            helm: {}
+            additionalImages:
+              - name: registry.redhat.io/ubi9/ubi:latest
+              - name: registry.redhat.io/rhel9/support-tools:latest
+              - name: registry.redhat.io/openshift4/ose-cli:latest
+        dest: "{{ isc_file }}"
+        mode: "0644"
+      changed_when: false
+
+    # -------------------------------
+    # MIRROR TO DISK
+    # -------------------------------
+    - name: Mirror OpenShift images to local disk
+      ansible.builtin.shell: >
+        {{ oc_mirror_binary }}
+        -c {{ isc_file }}
+        file://{{ mirror_output_dir }}
+        --v2 | tee {{ log_dir }}/mirror-to-disk.log
+      args:
+        chdir: "{{ log_dir }}"
+      register: mirror_to_disk
+      when: phase in ["disk", "both"]
+      ignore_errors: true
+
+    - name: Fail if disk mirror output not created
+      ansible.builtin.stat:
+        path: "{{ mirror_output_dir }}"
+      register: disk_mirror_metadata
+
+    - name: Stop play if disk mirror output missing
+      ansible.builtin.fail:
+        msg: "Disk mirror output not found at {{ mirror_output_dir }}"
+      when:
+        - phase in ["disk", "both"]
+        - not disk_mirror_metadata.stat.exists
+
+    # -------------------------------
+    # MIRROR TO REGISTRY (WITH RETRIES)
+    # -------------------------------
+    - name: Mirror from disk to Quay registry (initial attempt)
+      ansible.builtin.shell: >
+        {{ oc_mirror_binary }}
+        -c {{ isc_file }}
+        --from file://{{ mirror_output_dir }}
+        docker://{{ quay_registry }}
+        --v2 | tee {{ log_dir }}/mirror-to-registry.log
+      args:
+        chdir: "{{ log_dir }}"
+      register: mirror_to_registry
+      when: phase in ["registry", "both"]
+      ignore_errors: true
+      tags: push 
+
+    - name: Check for push errors in oc-mirror logs
+      ansible.builtin.shell: >
+        grep -E "unauthorized|METHOD NOT ALLOWED|error mirroring image" {{ log_dir }}/mirror-to-registry.log || true
+      register: mirror_errors
+      changed_when: false
+      when: phase in ["registry", "both"]
+      tags: check
+
+    - name: Retry mirroring failed operator images
+      ansible.builtin.shell: >
+        {{ oc_mirror_binary }}
+        -c {{ isc_file }}
+        --from file://{{ mirror_output_dir }}
+        docker://{{ quay_registry }}
+        --v2 | tee {{ log_dir }}/mirror-to-registry-retry-{{ item }}.log
+      args:
+        chdir: "{{ log_dir }}"
+      register: mirror_retry
+      when:
+        - phase in ["registry", "both"]
+        - mirror_errors.stdout | length > 0
+      retries: "{{ retry_limit }}"
+      delay: 60
+      until: mirror_retry.rc == 0
+      ignore_errors: true
+      tags: retry
+
+    - name: Report final status
+      ansible.builtin.debug:
+        msg:
+          - "Final push status: {{ 'Success' if mirror_retry is not failed else 'Some errors remained' }}"
+          - "Logs: {{ log_dir }}/mirror-to-registry*.log"
+
+    # -------------------------------
+    # VALIDATION
+    # -------------------------------
+    - name: Verify Quay registry health
+      ansible.builtin.shell: >
+        curl -sk https://{{ quay_registry }}/health/instance
+      register: quay_health
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show summary and log pointers
+      ansible.builtin.debug:
+        msg:
+          - "Quay Health: {{ quay_health.stdout | default('Unavailable') }}"
+          - "Disk Mirror Log: {{ log_dir }}/mirror-to-disk.log"
+          - "Registry Mirror Log: {{ log_dir }}/mirror-to-registry.log"
+          - "Retries (if any): {{ log_dir }}/mirror-to-registry-retry-*.log"

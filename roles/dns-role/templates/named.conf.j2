@@ -1,0 +1,29 @@
+options {
+    directory "/var/named";
+    listen-on port 53 { any; };
+    allow-query     { any; };
+    recursion yes;
+    dnssec-enable yes;
+    dnssec-validation yes;
+    auth-nxdomain yes;
+};
+
+logging {
+    channel default_debug {
+        file "data/named.run";
+        severity dynamic;
+    };
+};
+
+zone "{{ dns_domain }}" IN {
+    type master;
+    file "{{ forward_zone_file }}";
+    allow-update { none; };
+};
+
+zone "{{ reverse_zone_network }}.in-addr.arpa" IN {
+    type master;
+    file "{{ reverse_zone_file }}";
+    allow-update { none; };
+};
+

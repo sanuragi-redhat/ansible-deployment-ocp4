@@ -1,0 +1,166 @@
+[user@automation-controller ansible-practice]$ ansible-playbook openshift/02.prepare_install_config_manifests.yaml
+[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details
+ ______________________________________________________
+/ PLAY [2. Prepare OpenShift 4.19 installation and web \
+\ hosting]                                             /
+ ------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ ___________________________________________________________
+/ TASK [1. Ensure required packages are installed (Apache + \
+\ dependencies)]                                            /
+ -----------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ ________________________________________________________
+< TASK [2. Ensure Apache service is enabled and running] >
+ --------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ __________________________________________________________
+< TASK [3. Ensure OpenShift installation directory exists] >
+ ----------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ ______________________________________________________
+< TASK [4. Create install-config.yaml for OpenShift 4] >
+ ------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ _____________________________________________
+< TASK [5. Verify install-config.yaml exists] >
+ ---------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ __________________________________________________
+< TASK [6. Fail if install-config.yaml is missing] >
+ --------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+skipping: [service-node.lab.redhat-workshop.in]
+ ________________________________________
+< TASK [7. Generate OpenShift manifests] >
+ ----------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ _____________________________________
+< TASK [8. Generate ignition configs] >
+ -------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ ______________________________________________
+< TASK [9. Ensure web server directory exists] >
+ ----------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ _________________________________________________________
+/ TASK [10. Find ignition files in OpenShift installation \
+\ directory]                                              /
+ ---------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in]
+ ________________________________________________________
+< TASK [11. Copy ignition files to web server directory] >
+ --------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in] => (item={'path': '/root/ocp4/master.ign', 'mode': '0640', 'isdir': False, 'ischr': False, 'isblk': False, 'isreg': True, 'isfifo': False, 'islnk': False, 'issock': False, 'uid': 0, 'gid': 0, 'size': 1716, 'inode': 3427, 'dev': 64768, 'nlink': 1, 'atime': 1761968305.2943928, 'mtime': 1761968305.2943928, 'ctime': 1761968305.2943928, 'gr_name': 'root', 'pw_name': 'root', 'wusr': True, 'rusr': True, 'xusr': False, 'wgrp': False, 'rgrp': True, 'xgrp': False, 'woth': False, 'roth': False, 'xoth': False, 'isuid': False, 'isgid': False})
+changed: [service-node.lab.redhat-workshop.in] => (item={'path': '/root/ocp4/worker.ign', 'mode': '0640', 'isdir': False, 'ischr': False, 'isblk': False, 'isreg': True, 'isfifo': False, 'islnk': False, 'issock': False, 'uid': 0, 'gid': 0, 'size': 1716, 'inode': 3428, 'dev': 64768, 'nlink': 1, 'atime': 1761968305.3013928, 'mtime': 1761968305.3013928, 'ctime': 1761968305.3013928, 'gr_name': 'root', 'pw_name': 'root', 'wusr': True, 'rusr': True, 'xusr': False, 'wgrp': False, 'rgrp': True, 'xgrp': False, 'woth': False, 'roth': False, 'xoth': False, 'isuid': False, 'isgid': False})
+changed: [service-node.lab.redhat-workshop.in] => (item={'path': '/root/ocp4/bootstrap.ign', 'mode': '0640', 'isdir': False, 'ischr': False, 'isblk': False, 'isreg': True, 'isfifo': False, 'islnk': False, 'issock': False, 'uid': 0, 'gid': 0, 'size': 302341, 'inode': 3429, 'dev': 64768, 'nlink': 1, 'atime': 1761968306.5673928, 'mtime': 1761968306.5673928, 'ctime': 1761968306.5673928, 'gr_name': 'root', 'pw_name': 'root', 'wusr': True, 'rusr': True, 'xusr': False, 'wgrp': False, 'rgrp': True, 'xgrp': False, 'woth': False, 'roth': False, 'xoth': False, 'isuid': False, 'isgid': False})
+ __________________________________________________
+< TASK [12. Adjust permissions for ignition files] >
+ --------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ ______________________________________
+< TASK [13. Restarting Apache service] >
+ --------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ ______________________________________
+< TASK [14. Disable Firewalld Service] >
+ --------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [service-node.lab.redhat-workshop.in]
+ _______________________________________
+< TASK [15. Display completion summary] >
+ ---------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [service-node.lab.redhat-workshop.in] => {
+    "msg": [
+        "✅ OpenShift ignition files generated successfully",
+        "📁 Directory: /var/www/html/ocp4",
+        "🌐 Access URL example: http://192.168.1.254/ocp4/bootstrap.ign"
+    ]
+}
+ ____________
+< PLAY RECAP >
+ ------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+service-node.lab.redhat-workshop.in : ok=14   changed=7    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+

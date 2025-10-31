@@ -1,0 +1,10 @@
+[boot]
+bootstrap.lab.redhat-workshop.in  ansible_user=core
+
+[ocp-master]
+master1.lab.redhat-workshop.in  ansible_user=core
+master2.lab.redhat-workshop.in  ansible_user=core
+master3.lab.redhat-workshop.in  ansible_user=core
+
+[openshift]
+bastion.lab.redhat-workshop.in  ansible_user=user

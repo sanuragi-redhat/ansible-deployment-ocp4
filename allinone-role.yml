@@ -1,0 +1,35 @@
+---
+- name: Prepare all nodes by disabling SELinux
+  hosts: all
+  become: yes
+  tasks:
+    - name: Temporarily set SELinux to permissive
+      ansible.builtin.command: setenforce 0
+      changed_when: ansible_selinux.status == "enabled"
+      when: ansible_selinux.status != "disabled"
+
+    - name: Permanently disable SELinux
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=disabled'
+        backup: yes
+      changed_when: ansible_selinux.status != "disabled"
+
+- name: Deploy DNS servers
+  hosts: dns_servers
+  become: yes
+  roles:
+    - dns-role
+
+- name: Deploy HAProxy
+  hosts: dns_servers
+  become: yes
+  roles:
+    - haproxy
+ 
+- name: Configure NTP on all nodes
+  hosts: all
+  become: yes
+  roles:
+    - ntp

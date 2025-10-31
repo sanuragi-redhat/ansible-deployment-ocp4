@@ -1,0 +1,90 @@
+# Global settings
+#---------------------------------------------------------------------
+global
+    maxconn     {{ haproxy_maxconn }}
+    log         /dev/log local0 info
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    user        {{ haproxy_user }}
+    group       {{ haproxy_group }}
+    daemon
+    stats socket /var/lib/haproxy/stats
+
+#---------------------------------------------------------------------
+# Defaults
+#---------------------------------------------------------------------
+defaults
+    log                     global
+    mode                    http
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option redispatch
+    option forwardfor       except 127.0.0.0/8
+    retries                 3
+    maxconn                 {{ haproxy_maxconn }}
+    timeout http-request    10000ms
+    timeout http-keep-alive 10000ms
+    timeout check           10000ms
+    timeout connect         40000ms
+    timeout client          300000ms
+    timeout server          300000ms
+    timeout queue           50000ms
+
+# Stats
+listen stats
+    bind :{{ haproxy_stats_port }}
+    stats uri {{ haproxy_stats_uri }}
+    stats refresh 10000ms
+
+# Kube API Server
+frontend k8s_api_frontend
+    bind :{{ k8s_api_port }}
+    default_backend k8s_api_backend
+    mode tcp
+
+backend k8s_api_backend
+    mode tcp
+    balance source
+{% for node in k8s_api_servers %}
+    server {{ node.name }} {{ node.ip }}:{{ k8s_api_port }} check
+{% endfor %}
+
+# OCP Machine Config Server
+frontend ocp_machine_config_server_frontend
+    mode tcp
+    bind :{{ ocp_machine_config_port }}
+    default_backend ocp_machine_config_server_backend
+
+backend ocp_machine_config_server_backend
+    mode tcp
+    balance source
+{% for node in k8s_api_servers %}
+    server {{ node.name }} {{ node.ip }}:{{ ocp_machine_config_port }} check
+{% endfor %}
+
+# OCP HTTP ingress
+frontend ocp_http_ingress_frontend
+    bind :{{ ocp_http_ingress_port }}
+    default_backend ocp_http_ingress_backend
+    mode tcp
+
+backend ocp_http_ingress_backend
+    mode tcp
+    balance source
+{% for node in k8s_api_servers[1:] %}   # skip bootstrap if needed
+    server {{ node.name }} {{ node.ip }}:{{ ocp_http_ingress_port }} check
+{% endfor %}
+
+# OCP HTTPS ingress
+frontend ocp_https_ingress_frontend
+    bind :{{ ocp_https_ingress_port }}
+    default_backend ocp_https_ingress_backend
+    mode tcp
+
+backend ocp_https_ingress_backend
+    mode tcp
+    balance source
+{% for node in k8s_api_servers[1:] %}
+    server {{ node.name }} {{ node.ip }}:{{ ocp_https_ingress_port }} check
+{% endfor %}

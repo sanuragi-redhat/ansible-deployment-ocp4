@@ -1,0 +1,174 @@
+---
+- name: 2. Prepare OpenShift 4.19 installation and web hosting
+  hosts: service
+  become: true
+  vars:
+    ocp_install_dir: /root/ocp4
+    install_config_src: /root/ocp4/install-config.yaml
+    web_dir: /var/www/html/ocp4
+    install_config_file: "{{ ocp_install_dir }}/install-config.yaml"
+
+  tasks:
+    - name: 1. Ensure required packages are installed (Apache + dependencies)
+      ansible.builtin.package:
+        name:
+          - podman 
+          - buildah
+          - skopeo
+          - httpd
+          - tar
+          - gzip
+        state: present
+
+    - name: 2. Ensure Apache service is enabled and running
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: true
+
+    - name: 3. Ensure OpenShift installation directory exists
+      ansible.builtin.file:
+        path: "{{ ocp_install_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: 4. Create install-config.yaml for OpenShift 4
+      ansible.builtin.copy:
+        dest: "{{ install_config_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          apiVersion: v1
+          baseDomain: lab.local
+          compute:
+            - hyperthreading: Enabled
+              name: worker
+              replicas: 0
+          controlPlane:
+            hyperthreading: Enabled
+            name: master
+            replicas: 1
+          metadata:
+            name: ocp4
+          networking:
+            clusterNetwork:
+              - cidr: 10.128.0.0/14
+                hostPrefix: 22
+            networkType: OVNKubernetes
+            serviceNetwork:
+              - 172.30.0.0/16
+          platform:
+            none: {}
+          fips: false
+          pullSecret: '{"auths":{"quay-mirror.lab.redhat-workshop.in:8443":{"auth":"cXVheWFkbWluOnF1YXlhZG1pbg=="}}}'
+          sshKey: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDHq6sexO9AdDFIqrOnlewDgn9nDH3eyRCCZACq/W6dsV6hNJiELlpt2vvbLA8mPCFXASLf34SXaBXsAT8dr0mG4nBvwddoEG++l1WCTSo3yjrT0Nd67yjegqHJxbZ/R/yCTN4f0rptFhh+9UWirBQwQHjpE3bsoPjOlbKNLCViRrjPtKJPNiak0TN7KTZa0Pfo/4Q4yrzIC+98fcAoO/jmGiENiygiE0fUjkVOH3zP6kGk5MxVlOb2rdrWG+fWVUDRnkTxO87k28Zjc92aj2FPzkp7pbIzfu10fK17ME+4UERKVmnaFebPrVVV/ENAdjReYourgzPxEKJSYGnZzztN4/rFzslrdveMhhqC+wtJlXHdknc0Vq9WtBO3kOdOPv/QtJW6sknPou3/bzgAk2BjWi3rzxbY51JMqH6ALSP5ts0kliK3TNG4QepqMd/xkGV3J9Nadlax9xoOAXemCCwZNhpKpUcUT/6eqabT0wh9D0gwlmD8a6D+gWa9Lse2EZk= root@service-node.lab.redhat-workshop.in"
+          additionalTrustBundle: |
+            -----BEGIN CERTIFICATE-----
+            MIIEDjCCAvagAwIBAgIUcqhaeyhgM7heRNP6eDBE1/7B2NUwDQYJKoZIhvcNAQEL
+            BQAwfDELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAlZBMREwDwYDVQQHDAhOZXcgWW9y
+            azENMAsGA1UECgwEUXVheTERMA8GA1UECwwIRGl2aXNpb24xKzApBgNVBAMMInF1
+            YXktbWlycm9yLmxhYi5yZWRoYXQtd29ya3Nob3AuaW4wHhcNMjUxMDMxMjAyNTMz
+            WhcNMjgwODIwMjAyNTMzWjB8MQswCQYDVQQGEwJVUzELMAkGA1UECAwCVkExETAP
+            BgNVBAcMCE5ldyBZb3JrMQ0wCwYDVQQKDARRdWF5MREwDwYDVQQLDAhEaXZpc2lv
+            bjErMCkGA1UEAwwicXVheS1taXJyb3IubGFiLnJlZGhhdC13b3Jrc2hvcC5pbjCC
+            ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOa5PLgPvrK/Qls1/J3dwmCV
+            bBFO7RqxmkJ6+o4VvPSA2CPHE4e39upXBorwhQm+D2IPafHxS2TN12Fk35RPA7YP
+            ds79gEEBnKX5zQeFGPDmDRRUXDYd75Ij0L6+4m7Zjl+MwEslkOQ6oey9modGL3BG
+            N3K51nlUMfGUvrk695ywNHUgfzhw9C+x63RH5UgqZ+GFU6/J0txHXi9GsTUvRtnr
+            uam0QPSY5Bc/c3RjFCj/0Y904jLVRLVHemCMn/Qmt/s0YNmrSeHIYh1cdZ3kOZEG
+            7aLwfFhxO7lrmBa/pvxFDaknoXnhlB7A/QHmYCgumumvmRQcbZbmjDcNc+7KwYUC
+            AwEAAaOBhzCBhDALBgNVHQ8EBAMCAuQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwLQYD
+            VR0RBCYwJIIicXVheS1taXJyb3IubGFiLnJlZGhhdC13b3Jrc2hvcC5pbjASBgNV
+            HRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBQli2ddXi/m2S50Uei+itrGVMkh+TAN
+            BgkqhkiG9w0BAQsFAAOCAQEAaSJTHMFNOtpKhQbRpJThRs5xWLUuWlPDengXkpV7
+            SsMPncWqBOzm7WKQyC3s+vDSUC19SAp4c+HNsCmVpeoydQQsYSZ7hyKjPR/tXjNz
+            2JTMVfiEVIQlSnfGwqOO1LtMypkq/3ACmGdUPT/0K7/bt4u/cwOk4umdaiiRR2B7
+            Ks7MRfrstG+kp4d5x1haRda9ht6ovwxEAh5Mei2EfHHNNGW+Tt4dybWjIVwuG4hl
+            o3j/We+vtoCHRLNEGAUQc/BTO2tAOPAx3SHrhYuO8mN2Ri3S3lz5NMKxs4khANkV
+            OlY80M+gfN+p3UDrel54OALmNo6Vv/EFFf08m4TlEhKmhA==
+            -----END CERTIFICATE-----
+          imageContentSources:
+          - mirrors:
+            - quay-mirror.lab.redhat-workshop.in:8443/openshift/release-images
+            source: quay.io/openshift-release-dev/ocp-release
+          - mirrors:
+            - quay-mirror.lab.redhat-workshop.in:8443/openshift/release
+            source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+
+    - name: 5. Verify install-config.yaml exists
+      ansible.builtin.stat:
+        path: "{{ install_config_src }}"
+      register: install_config_check
+
+    - name: 6. Fail if install-config.yaml is missing
+      ansible.builtin.fail:
+        msg: "install-config.yaml not found in {{ install_config_src }}"
+      when: not install_config_check.stat.exists
+
+    - name: 7. Generate OpenShift manifests
+      ansible.builtin.command:
+        cmd: openshift-install create manifests --dir={{ ocp_install_dir }}
+      args:
+        chdir: "{{ ocp_install_dir }}"
+      register: manifest_output
+      changed_when: "'INFO' in manifest_output.stdout"
+
+    - name: 8. Generate ignition configs
+      ansible.builtin.command:
+        cmd: openshift-install create ignition-configs --dir={{ ocp_install_dir }}
+      args:
+        chdir: "{{ ocp_install_dir }}"
+      register: ignition_output
+      changed_when: "'INFO' in ignition_output.stdout"
+
+    - name: 9. Ensure web server directory exists
+      ansible.builtin.file:
+        path: "{{ web_dir }}"
+        state: directory
+        mode: '0755'
+        owner: apache
+        group: apache
+
+    - name: 10. Find ignition files in OpenShift installation directory
+      ansible.builtin.find:
+        paths: "{{ ocp_install_dir }}"
+        patterns: "*.ign"
+      register: ignition_files
+
+    - name: 11. Copy ignition files to web server directory
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: "{{ web_dir }}/{{ item.path | basename }}"
+        owner: apache
+        group: apache
+        mode: '0644'
+        remote_src: true
+      loop: "{{ ignition_files.files }}"
+      when: ignition_files.matched > 0
+
+    - name: 12. Adjust permissions for ignition files
+      ansible.builtin.file:
+        path: "{{ web_dir }}"
+        recurse: yes
+        mode: '0755'
+
+    - name: 13. Restarting Apache service 
+      ansible.builtin.service: 
+        name: httpd 
+        state: restarted 
+        enabled: true 
+
+    - name: 14. Disable Firewalld Service 
+      ansible.builtin.service: 
+        name: firewalld 
+        state: stopped 
+        enabled: false 
+
+    - name: 15. Display completion summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ OpenShift ignition files generated successfully"
+          - "📁 Directory: {{ web_dir }}"
+          - "🌐 Access URL example: http://{{ ansible_facts['default_ipv4']['address'] }}/ocp4/bootstrap.ign"

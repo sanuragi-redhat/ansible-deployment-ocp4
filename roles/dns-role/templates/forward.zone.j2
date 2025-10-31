@@ -1,0 +1,18 @@
+$TTL 1D
+@       IN SOA  root.{{ dns_domain }}. service-node.{{ dns_domain }}. (
+        {{ serial }}       ; serial
+        1D      ; refresh
+        1H      ; retry
+        1W      ; expire
+        3H )    ; minimum
+@       IN      NS      service-node.{{ dns_domain }}.
+
+; Default A record for domain
+@       IN      A       {{ default_ip }}
+
+; Loop through records
+{% for record in dns_records %}
+{% if record.name not in dns_records_remove | map(attribute='name') | list %}
+{{ record.name }}.{{ dns_domain }}.    IN  {{ record.type }}   {{ record.value }}
+{% endif %}
+{% endfor %}

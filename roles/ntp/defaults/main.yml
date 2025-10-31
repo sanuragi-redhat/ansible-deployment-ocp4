@@ -1,0 +1,6 @@
+---
+ntp_server_ip: 192.168.1.254
+ntp_domain: service-node.lab.redhat-workshop.in
+chrony_conf_path: /etc/chrony.conf
+ntp_subnet: 192.168.1.0/24
+

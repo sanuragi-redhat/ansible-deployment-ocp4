@@ -1,0 +1,38 @@
+---
+- name: Install HAProxy
+  package:
+    name: haproxy
+    state: present
+
+- name: Ensure HAProxy config directory exists
+  file:
+    path: /etc/haproxy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy HAProxy configuration
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart haproxy
+
+- name: Disable SELinux temporarily
+  ansible.builtin.command: setenforce 0
+  when: ansible_selinux.status == "enabled"
+
+- name: Disable SELinux permanently
+  ansible.builtin.lineinfile:
+    path: /etc/selinux/config
+    regexp: '^SELINUX='
+    line: 'SELINUX=disabled'
+- name: Ensure HAProxy service is enabled and running
+  service:
+    name: haproxy
+    state: started
+    enabled: yes
+

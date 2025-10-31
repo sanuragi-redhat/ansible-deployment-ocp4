@@ -1,0 +1,7 @@
+---
+- name: Restart named
+  service:
+    name: named
+    state: restarted
+
+# handlers file for dns-role

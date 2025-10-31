@@ -1,0 +1,175 @@
+---
+- name: Precheck Environment Before OpenShift Deployment
+  hosts: 
+    - quay
+    - service
+  become: true
+  gather_facts: true
+  ignore_errors: true
+
+  vars:
+    expected_ocp_version: "4.18"
+    required_binaries:
+      - /usr/bin/oc
+      - /usr/bin/openshift-install
+      - /usr/bin/oc-mirror
+    required_files:
+      - /home/user/ansible-practice/01.download_install_prepare_ocp4_binaries.yaml
+      - /home/user/ansible-practice/02.prepare_install_config_manifests.yaml
+      - /home/user/ansible-practice/03.quay_mirror_registry_configure.yaml
+      - /home/user/ansible-practice/04.mirror_registry_integrity_validation.yaml
+      - /home/user/ansible-practice/05.quay_docker_config_registries.yaml
+    quay_registry: "quay-mirror.lab.redhat-workshop.in:8443"
+    redhat_registries:
+      - registry.redhat.io
+      - quay-mirror.lab.redhat-workshop.in
+    min_cpu_cores: 4
+    min_memory_mb: 8192
+    min_disk_gb: 50
+
+  tasks:
+
+  # --------------------------------------------------------------------
+  # System Information
+  # --------------------------------------------------------------------
+    - name: Display system summary
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "CPU Cores: {{ ansible_processor_vcpus }}"
+          - "Memory MB: {{ ansible_memtotal_mb }}"
+          - "Disk Total (GB): {{ (ansible_devices.values() | map(attribute='size') | list | join(', ')) | default('Unknown') }}"
+
+  # --------------------------------------------------------------------
+  # Validate OS and Resources
+  # --------------------------------------------------------------------
+    - name: Check minimum CPU cores
+      ansible.builtin.assert:
+        that: ansible_processor_vcpus | int >= min_cpu_cores
+        fail_msg: "System must have at least {{ min_cpu_cores }} CPU cores."
+        success_msg: "CPU core check passed ({{ ansible_processor_vcpus }} cores)."
+
+    - name: Check minimum memory
+      ansible.builtin.assert:
+        that: ansible_memtotal_mb | int >= min_memory_mb
+        fail_msg: "System must have at least {{ min_memory_mb }} MB of RAM."
+        success_msg: "Memory check passed ({{ ansible_memtotal_mb }} MB)."
+
+    - name: Check SELinux status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+
+    - name: Display SELinux status
+      ansible.builtin.debug:
+        msg: "SELinux mode: {{ selinux_status.stdout }}"
+
+  # --------------------------------------------------------------------
+  # Check Binaries
+  # --------------------------------------------------------------------
+    - name: Verify required OpenShift binaries are present
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ required_binaries }}"
+      register: binary_check
+
+    - name: Fail if any required binary is missing
+      ansible.builtin.fail:
+        msg: "Required binary {{ item.item }} not found!"
+      when: not item.stat.exists
+      loop: "{{ binary_check.results }}"
+
+    - name: Display binary paths
+      ansible.builtin.debug:
+        msg: "Binary {{ item.item }} found."
+      loop: "{{ binary_check.results }}"
+      when: item.stat.exists
+
+  # --------------------------------------------------------------------
+  # Check Docker/Podman Config
+  # --------------------------------------------------------------------
+    - name: Ensure Docker authentication config exists
+      ansible.builtin.stat:
+        path: /root/.docker/config.json
+      register: docker_config
+
+    - name: Fail if Docker authentication config is missing
+      ansible.builtin.fail:
+        msg: "/root/.docker/config.json is missing — registry authentication not configured."
+      when: not docker_config.stat.exists
+
+    - name: Validate registry authentication JSON format
+      ansible.builtin.shell: "jq . /root/.docker/config.json"
+      register: jq_validate
+      failed_when: jq_validate.rc != 0
+      changed_when: false
+      ignore_errors: false
+
+  # --------------------------------------------------------------------
+  # Check Registry Access
+  # --------------------------------------------------------------------
+    - name: Validate access to Red Hat registries
+      ansible.builtin.uri:
+        url: "https://{{ item }}/v2/"
+        method: GET
+        validate_certs: false
+      register: registry_check
+      ignore_errors: true
+      loop: "{{ redhat_registries }}"
+
+    - name: Show registry access results
+      ansible.builtin.debug:
+        msg: "Registry {{ item.item }} - HTTP Status: {{ item.status | default('unreachable') }}"
+      loop: "{{ registry_check.results }}"
+
+    - name: Check access to internal Quay mirror
+      ansible.builtin.uri:
+        url: "https://{{ quay_registry }}/health/instance"
+        method: GET
+        validate_certs: false
+      register: quay_health
+      ignore_errors: true
+
+    - name: Display Quay mirror health
+      ansible.builtin.debug:
+        msg: "Quay Health Check Response: {{ quay_health.status | default('unreachable') }}"
+
+  # --------------------------------------------------------------------
+  # Network Validation
+  # --------------------------------------------------------------------
+    - name: Verify DNS resolution for registries
+      ansible.builtin.shell: "host {{ item }}"
+      register: dns_check
+      ignore_errors: true
+      loop: "{{ redhat_registries + [quay_registry] }}"
+
+  # --------------------------------------------------------------------
+  # File Presence Validation
+  # --------------------------------------------------------------------
+    - name: Verify presence of required deployment playbooks
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_check
+      loop: "{{ required_files }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display verified playbook list
+      ansible.builtin.debug:
+        msg: "✅ Found playbook: {{ item.item }}"
+      loop: "{{ file_check.results }}"
+      when: item.stat.exists
+      delegate_to: localhost
+      run_once: true
+  # --------------------------------------------------------------------
+  # Final Summary
+  # --------------------------------------------------------------------
+    - name: Display final precheck summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ Environment precheck complete!"
+          - "Ensure mirror content and manifests are ready before deployment."
+          - "Check logs under /var/log or ansible output for details."
+

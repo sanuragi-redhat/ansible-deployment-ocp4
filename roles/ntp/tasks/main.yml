@@ -1,0 +1,20 @@
+---
+- name: Install chrony
+  package:
+    name: chrony
+    state: present
+
+- name: Deploy chrony configuration
+  template:
+    src: chrony.conf.j2
+    dest: "{{ chrony_conf_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart chrony
+
+- name: Ensure chrony is enabled and running
+  service:
+    name: chronyd
+    state: started
+    enabled: yes

@@ -1,0 +1,19 @@
+$TTL 1D
+@       IN SOA  root.{{ dns_domain }}. service-node.{{ dns_domain }}. (
+        {{ serial }}       ; serial
+        1D      ; refresh
+        1H      ; retry
+        1W      ; expire
+        3H )    ; minimum
+@       IN      NS      service-node.{{ dns_domain }}.
+
+; Default PTR for domain
+@       IN      PTR     {{ dns_domain }}.
+
+; Loop through reverse records
+{% for record in reverse_dns_records %}
+{% if record.ip not in reverse_dns_records_remove | map(attribute='ip') | list %}
+{{ record.ip.split('.')[-1] }}   IN  PTR {{ record.name }}.{{ dns_domain }}.
+{% endif %}
+{% endfor %}
+

@@ -1,0 +1,55 @@
+---
+- name: Install BIND package
+  package:
+    name: [ 'bind', 'bind-utils' ]
+    state: present
+
+- name: Ensure /var/named directory exists
+  file:
+    path: /var/named
+    state: directory
+    owner: named
+    group: named
+    mode: '0755'
+
+- name: Generate named.conf
+  template:
+    src: named.conf.j2
+    dest: /etc/named.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart named
+
+- name: Ensure /var/named directory exists
+  file:
+    path: /var/named
+    state: directory
+    owner: named
+    group: named
+    mode: '0755'
+
+- name: Generate forward zone file
+  template:
+    src: forward.zone.j2
+    dest: "{{ forward_zone_file }}"
+    owner: root
+    group: named
+    mode: '0644'
+  notify: Restart named
+
+- name: Generate reverse zone file
+  template:
+    src: reverse.zone.j2
+    dest: "{{ reverse_zone_file }}"
+    owner: root
+    group: named
+    mode: '0644'
+  notify: Restart named
+
+- name: Ensure named service is running and enabled
+  service:
+    name: named
+    state: started
+    enabled: yes
+

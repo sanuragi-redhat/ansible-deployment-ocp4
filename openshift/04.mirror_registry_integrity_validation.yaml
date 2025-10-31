@@ -1,0 +1,150 @@
+---
+- name: Configure Mirror Registry for OpenShift
+  hosts: quay
+  become: true
+
+  vars:
+    rhsm_username: ""
+    rhsm_password: ""
+    rhsm_pool: ""  # Optional: specify subscription pool ID if needed
+
+    mirror_registry_version: "1.3.11"
+    mirror_registry_tarball: "mirror-registry.tar.gz"
+    registry_install_dir: /opt/mirror-registry
+    registry_data_dir: /opt/registry
+    registry_port: 8443
+    quay_admin_user: "quayadmin"
+    quay_admin_pass: "quayadmin"
+
+  tasks:
+
+  # ------------------------
+  # VALIDATION
+  # ------------------------
+  - name: Check if mirror registry container already running
+    ansible.builtin.shell: "podman ps --format '{{ '{{ .Names }}' }}' | grep -w quay-app"
+    register: quay_running
+    ignore_errors: true
+    changed_when: false
+
+  - name: Skip installation if Quay is already running
+    ansible.builtin.debug:
+      msg: "Mirror Registry already deployed and running. Skipping installation."
+    when: quay_running.rc == 0
+
+  - name: Proceed with installation if Quay is not running
+    block:
+
+      # ------------------------
+      # RHSM REGISTRATION
+      # ------------------------
+      - name: Unregister system if already registered
+        ansible.builtin.command: subscription-manager unregister
+        ignore_errors: true
+
+      - name: Clean subscription data
+        ansible.builtin.command: subscription-manager clean
+        ignore_errors: true
+
+      - name: Register system to Red Hat
+        ansible.builtin.command: >
+          subscription-manager register
+          --username {{ rhsm_username }}
+          --password {{ rhsm_password }}
+        register: register_output
+        changed_when: "'The system has been registered' in register_output.stdout"
+        no_log: true
+
+      - name: Attach available subscription (auto-attach)
+        ansible.builtin.command: subscription-manager attach --auto
+        register: attach_output
+        changed_when: "'Successfully attached' in attach_output.stdout"
+        ignore_errors: true
+
+      - name: Enable required repositories
+        ansible.builtin.command: >
+          subscription-manager repos
+          --enable=rhel-9-for-x86_64-baseos-rpms
+          --enable=rhel-9-for-x86_64-appstream-rpms
+        register: repos_output
+        changed_when: "'enabled' in repos_output.stdout"
+
+      - name: Ensure required packages are installed
+        ansible.builtin.package:
+          name:
+            - podman
+            - httpd-tools
+            - tar
+          state: present
+
+      # ------------------------
+      # INSTALLATION
+      # ------------------------
+      - name: Create registry directories
+        ansible.builtin.file:
+          path: "{{ item }}"
+          state: directory
+          owner: root
+          group: root
+          mode: "0755"
+        loop:
+          - "{{ registry_install_dir }}"
+          - "{{ registry_data_dir }}"
+
+      - name: Check if mirror registry tarball exists
+        ansible.builtin.stat:
+          path: "{{ registry_install_dir }}/{{ mirror_registry_tarball }}"
+        register: mirror_pkg
+
+      - name: Fail if mirror registry tarball not found
+        ansible.builtin.fail:
+          msg: "Mirror registry tarball not found at {{ registry_install_dir }}/{{ mirror_registry_tarball }}"
+        when: not mirror_pkg.stat.exists
+
+      - name: Extract Mirror Registry package
+        ansible.builtin.unarchive:
+          src: "{{ registry_install_dir }}/{{ mirror_registry_tarball }}"
+          dest: "{{ registry_install_dir }}"
+          remote_src: true
+
+      - name: Run Mirror Registry install script
+        ansible.builtin.shell:
+          cmd: ./mirror-registry install --quayHostname $(hostname) --initUser {{ quay_admin_user }} --initPassword {{ quay_admin_pass }}
+        args:
+          chdir: "{{ registry_install_dir }}"
+        register: install_output
+        changed_when: "'Quay installed successfully' in install_output.stdout"
+
+
+    when: quay_running.rc != 0
+
+  # ------------------------
+  # VALIDATION / STATUS
+  # ------------------------
+  - name: Copy root-CA certificate
+    ansible.builtin.copy:
+      src: /root/quay-install/quay-rootCA/rootCA.pem
+      dest: /etc/pki/ca-trust/source/anchors/rootCA.pem
+      owner: root
+      group: root
+      mode: "0644"
+      remote_src: true
+    ignore_errors: true
+
+  - name: Update CA trust
+    ansible.builtin.command: update-ca-trust
+    ignore_errors: true
+  - name: Verify mirror registry containers
+    ansible.builtin.command: podman ps
+    register: podman_ps
+    changed_when: false
+
+  - name: Display Mirror Registry status
+    ansible.builtin.debug:
+      msg:
+        - "Mirror Registry is running at: https://{{ ansible_fqdn }}:{{ registry_port }}"
+        - "Admin credentials: {{ quay_admin_user }} / {{ quay_admin_pass }}"
+        - "Registry root: {{ registry_data_dir }}"
+        - "Active containers:"
+        - "{{ podman_ps.stdout_lines }}"
+

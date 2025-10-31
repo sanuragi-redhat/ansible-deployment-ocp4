@@ -1,0 +1,181 @@
+---
+- name: Run OpenShift oc-mirror operations
+  hosts: quay
+  become: true
+  vars:
+    operator_dir: "/root/ocp-operators"
+    isc_file: "/root/ocp-operators/isc.yaml"
+    mirror_output_dir: "/var/quay-ops"
+    quay_registry: "quay-mirror.lab.redhat-workshop.in:8443"
+    oc_mirror_binary: "/usr/bin/oc-mirror"
+    log_dir: "/var/log/ocp-mirror"
+    phase: "both"  # options: disk, registry, both
+
+  tasks:
+    # -------------------------------
+    # VALIDATION
+    # -------------------------------
+    - name: Ensure oc-mirror binary exists
+      ansible.builtin.stat:
+        path: "{{ oc_mirror_binary }}"
+      register: oc_mirror_check
+      failed_when: not oc_mirror_check.stat.exists
+      changed_when: false
+
+
+    - name: Create log directory
+      ansible.builtin.file:
+        path: "{{ log_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Create operator directory
+      ansible.builtin.file:
+        path: "{{ operator_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Create Mirror  directory
+      ansible.builtin.file:
+        path: "{{ mirror_output_dir }}"
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+    # -------------------------------
+    # MIRROR TO DISK
+    # -------------------------------
+    - name:
+      ansible.builtin.copy:
+        content: |
+          kind: ImageSetConfiguration
+          apiVersion: mirror.openshift.io/v2alpha1
+          mirror:
+            platform:
+              channels:
+              - name: stable-4.19
+                minVersion: '4.19.15'
+                maxVersion: '4.19.15'
+                shortestPath: true
+                type: ocp
+            operators:
+            - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.19
+              packages:
+              - name: kubernetes-nmstate-operator
+                channels:
+                - name: stable
+              - name: kubevirt-hyperconverged
+                channels:
+                - name: stable
+              - name: metallb-operator
+                channels:
+                - name: stable
+              - name: mtv-operator
+                channels:
+                - name: release-v2.9
+            helm: {}
+            additionalImages:
+            - name: registry.redhat.io/ubi9/ubi:latest
+            - name: registry.redhat.io/rhel9/support-tools:latest
+            - name: registry.redhat.io/openshift4/ose-cli:latest
+        dest: "{{ isc_file }}"
+        mode: 0644
+      changed_when: false
+
+    - name: Ensure ISC configuration file exists
+      ansible.builtin.stat:
+        path: "{{ isc_file }}"
+      register: isc_check
+      failed_when: not isc_check.stat.exists
+      changed_when: false
+
+    - name: Mirror OpenShift images to local disk
+      ansible.builtin.shell: >
+        {{ oc_mirror_binary }}
+        -c {{ isc_file }}
+        file://{{ mirror_output_dir }}
+        --v2 | tee {{ log_dir }}/mirror-to-disk.log
+      args:
+        chdir: "{{ log_dir }}"
+      register: mirror_to_disk
+      when: phase in ["disk", "both"]
+      changed_when: "'Writing image set configuration' in mirror_to_disk.stdout"
+      ignore_errors: true
+
+    - name: Debug oc-mirror disk output
+      ansible.builtin.debug:
+        msg: "{{ mirror_to_disk.stdout_lines | default(['No disk output available']) }}"
+      when: phase in ["disk", "both"]
+
+    - name: Check if disk mirror output exists
+      ansible.builtin.stat:
+        path: "{{ mirror_output_dir }}"
+      register: disk_mirror_metadata
+
+    - name: Create mirror output directory if missing
+      ansible.builtin.file:
+        path: "{{ mirror_output_dir }}"
+        state: directory
+        mode: '0755'
+      when:
+        - phase in ["disk", "both"]
+        - not disk_mirror_metadata.stat.exists
+
+    - name: Fail if disk mirror output not created
+      ansible.builtin.fail:
+        msg: "Disk mirror output not found at {{ mirror_output_dir }}"
+      when:
+        - phase in ["disk", "both"]
+        - not disk_mirror_metadata.stat.exists
+
+
+    # -------------------------------
+    # DISK TO REGISTRY
+    # -------------------------------
+    - name: Mirror from disk to Quay registry
+      ansible.builtin.shell: >
+        {{ oc_mirror_binary }}
+        -c {{ isc_file }}
+        --from file://{{ mirror_output_dir }}
+        docker://{{ quay_registry }}
+        --v2 | tee {{ log_dir }}/mirror-to-registry.log
+      args:
+        chdir: "{{ log_dir }}"
+      register: mirror_to_registry
+      when: phase in ["registry", "both"]
+      changed_when: "'Writing image set configuration' in mirror_to_registry.stdout"
+      ignore_errors: true
+      tags: push
+
+    - name: Debug oc-mirror registry output
+      ansible.builtin.debug:
+        msg: "{{ mirror_to_registry.stdout_lines | default(['No registry output available']) }}"
+      when: phase in ["registry", "both"]
+      tags: show
+
+    # -------------------------------
+    # VALIDATION
+    # -------------------------------
+    - name: Verify mirrored images exist in registry
+      ansible.builtin.shell: >
+        curl -sk https://{{ quay_registry }}/health/instance
+      register: quay_health
+      changed_when: false
+      ignore_errors: true
+      when: phase in ["registry", "both"]
+      tags: verify
+
+    - name: Debug registry validation
+      ansible.builtin.debug:
+        msg:
+          - "Quay Health Check Output: {{ quay_health.stdout | default('Unavailable') }}"
+          - "Mirror-to-Disk Log: {{ log_dir }}/mirror-to-disk.log"
+          - "Mirror-to-Registry Log: {{ log_dir }}/mirror-to-registry.log"
+      tags: output
+
+
+
