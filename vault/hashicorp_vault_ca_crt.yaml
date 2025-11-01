@@ -4,7 +4,7 @@
   become: true
   vars:
     vault_addr: "http://vault.lab.redhat-workshop.in:8200"
-    vault_token: "hvs.N1wZ8jdKKiKy8BW7W0QFmRwe"
+    vault_token: "cat /root/token.txt"
     pki_path: "pki"
     domain_name: "apps.lab.redhat-workshop.in"
     cert_ttl: "8760h"     # 1 year
