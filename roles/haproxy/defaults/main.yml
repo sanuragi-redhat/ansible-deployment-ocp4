@@ -9,13 +9,13 @@ haproxy_stats_uri: /stats
 # K8s API server backend
 k8s_api_servers:
   - name: bootstrap
-    ip: 192.168.0.32
+    ip: 192.168.0.241
   - name: master1
-    ip: 192.168.0.33
+    ip: 192.168.0.242
   - name: master2
-    ip: 192.168.0.34
+    ip: 192.168.0.243
   - name: master3
-    ip: 192.168.0.35
+    ip: 192.168.0.244
 k8s_api_port: 6443
 
 # OCP Machine Config Server backend
