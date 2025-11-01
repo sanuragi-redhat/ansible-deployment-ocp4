@@ -1,0 +1,154 @@
+[user@automation-controller ansible-deployment-ocp4]$ ansible-playbook hashicorp_vault_ca_crt.yaml
+[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details
+ _________________________________________________
+/ PLAY [Configure Vault PKI and generate wildcard \
+\ certificate]                                    /
+ -------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ _________________________________________________________
+< TASK [Ensure jq is installed (for parsing JSON output)] >
+ ---------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in]
+ ___________________________________________
+< TASK [Export Vault environment variables] >
+ -------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in]
+ __________________________________
+< TASK [Enable PKI secrets engine] >
+ ----------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in]
+ _________________________________
+< TASK [Tune PKI to 10 years TTL] >
+ ---------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ _________________________
+< TASK [Generate Root CA] >
+ -------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ ___________________________________________
+< TASK [Ensure /etc/vault directory exists] >
+ -------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ _____________________________
+< TASK [Save Root CA to file] >
+ -----------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ _____________________________
+< TASK [Save Root CA to file] >
+ -----------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in]
+ _______________________________________
+< TASK [Configure issuing and CRL URLs] >
+ ---------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ ___________________________________
+< TASK [Create PKI role for domain] >
+ -----------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ ______________________________________
+< TASK [Generate wildcard certificate] >
+ --------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ __________________________________
+< TASK [Extract certificate files] >
+ ----------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [vault.lab.redhat-workshop.in]
+ ____________________________________
+< TASK [Display certificate summary] >
+ ------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in]
+ _________________________________
+< TASK [Show certificate details] >
+ ---------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [vault.lab.redhat-workshop.in] => {
+    "msg": [
+        "subject=CN=*.apps.lab.redhat-workshop.in",
+        "issuer=O=Red Hat Workshop, CN=*.apps.lab.redhat-workshop.in",
+        "notBefore=Nov  1 13:40:03 2025 GMT",
+        "notAfter=Nov  1 13:40:33 2026 GMT"
+    ]
+}
+ ____________
+< PLAY RECAP >
+ ------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+vault.lab.redhat-workshop.in : ok=14   changed=8    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+

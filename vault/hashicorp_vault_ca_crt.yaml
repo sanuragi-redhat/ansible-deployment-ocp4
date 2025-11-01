@@ -1,0 +1,122 @@
+---
+- name: Configure Vault PKI and generate wildcard certificate
+  hosts: vault
+  become: true
+  vars:
+    vault_addr: "http://vault.lab.redhat-workshop.in:8200"
+    vault_token: "hvs.N1wZ8jdKKiKy8BW7W0QFmRwe"
+    pki_path: "pki"
+    domain_name: "apps.lab.redhat-workshop.in"
+    cert_ttl: "8760h"     # 1 year
+    root_ttl: "87600h"    # 10 years
+    org_name: "Red Hat Workshop"
+
+  tasks:
+    - name: Ensure jq is installed (for parsing JSON output)
+      ansible.builtin.package:
+        name: jq
+        state: present
+
+    - name: Export Vault environment variables
+      ansible.builtin.shell: |
+        export VAULT_ADDR={{ vault_addr }}
+        export VAULT_TOKEN={{ vault_token }}
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+      changed_when: false
+
+    - name: Enable PKI secrets engine
+      ansible.builtin.command: >
+        vault secrets enable {{ pki_path }}
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+      register: enable_pki
+      failed_when: enable_pki.rc not in [0,2]
+      changed_when: "'successfully enabled' in enable_pki.stdout"
+
+    - name: Tune PKI to 10 years TTL
+      ansible.builtin.command: >
+        vault secrets tune -max-lease-ttl={{ root_ttl }} {{ pki_path }}
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+
+    - name: Generate Root CA
+      ansible.builtin.command: >
+        vault write -field=certificate {{ pki_path }}/root/generate/internal
+        common_name="*.{{ domain_name }}"
+        organization="{{ org_name }}"
+        ttl={{ root_ttl }}
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+      register: root_ca
+
+    - name: Ensure /etc/vault directory exists
+      ansible.builtin.file:
+        path: /etc/vault
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Save Root CA to file
+      ansible.builtin.copy:
+        dest: /etc/vault/root-ca.pem
+        content: "{{ root_ca.stdout }}"
+        mode: '0644'
+
+    - name: Save Root CA to file
+      ansible.builtin.copy:
+        dest: /etc/vault/root-ca.pem
+        content: "{{ root_ca.stdout }}"
+        mode: '0644'
+
+    - name: Configure issuing and CRL URLs
+      ansible.builtin.command: >
+        vault write {{ pki_path }}/config/urls
+        issuing_certificates="{{ vault_addr }}/v1/{{ pki_path }}/ca"
+        crl_distribution_points="{{ vault_addr }}/v1/{{ pki_path }}/crl"
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+
+    - name: Create PKI role for domain
+      ansible.builtin.command: >
+        vault write {{ pki_path }}/roles/lab-apps
+        allowed_domains="{{ domain_name }}"
+        allow_subdomains=true
+        max_ttl="{{ cert_ttl }}"
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+
+    - name: Generate wildcard certificate
+      ansible.builtin.shell: >
+        vault write -format=json {{ pki_path }}/issue/lab-apps
+        common_name="*.{{ domain_name }}"
+        ttl="{{ cert_ttl }}" > /tmp/apps-cert.json
+      environment:
+        VAULT_ADDR: "{{ vault_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+
+    - name: Extract certificate files
+      ansible.builtin.shell: |
+        jq -r '.data.certificate' /tmp/apps-cert.json > /etc/vault/apps.crt
+        jq -r '.data.private_key' /tmp/apps-cert.json > /etc/vault/apps.key
+        jq -r '.data.issuing_ca' /tmp/apps-cert.json > /etc/vault/ca.crt
+        chmod 0600 /etc/vault/apps.key
+      args:
+        executable: /bin/bash
+
+    - name: Display certificate summary
+      ansible.builtin.shell: openssl x509 -in /etc/vault/apps.crt -noout -subject -issuer -dates
+      register: cert_info
+      changed_when: false
+
+    - name: Show certificate details
+      ansible.builtin.debug:
+        msg: "{{ cert_info.stdout_lines }}"
+

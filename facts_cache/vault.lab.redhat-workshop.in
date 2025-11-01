@@ -1021,5 +1021,6 @@
     "gather_subset": [
         "all"
     ],
-    "module_setup": true
+    "module_setup": true,
+    "pkg_mgr": "dnf"
 }

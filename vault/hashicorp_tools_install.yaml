@@ -1,21 +1,12 @@
 ---
-- name: Install HashiCorp Vault, Terraform, and Packer on AlmaLinux 9
+- name: Install HashiCorp Vault, Terraform, and Packer on RHEL / AlmaLinux / Rocky 9
   hosts: vault
-  become: true
   vars:
     hashicorp_repo_url: "https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo"
 
   tasks:
-    - name: 🧾 Ensure system is AlmaLinux 9
-      ansible.builtin.assert:
-        that:
-          - ansible_facts['os_family'] == "RedHat"
-          - ansible_facts['distribution_major_version'] == "9"
-        fail_msg: "❌ This playbook is only supported on AlmaLinux 9 or RHEL 9"
-        success_msg: "✅ AlmaLinux 9 detected"
-
     - name: 📦 Install required dependencies
-      ansible.builtin.package:
+      ansible.builtin.dnf:
         name:
           - yum-utils
           - dnf-plugins-core
@@ -28,13 +19,9 @@
         dest: /etc/yum.repos.d/hashicorp.repo
         mode: '0644'
 
-    - name: 🔁 Clean DNF cache
-      ansible.builtin.command: dnf clean all
-      args:
-        warn: false
 
     - name: 📥 Install Vault, Terraform, and Packer
-      ansible.builtin.package:
+      ansible.builtin.dnf:
         name:
           - vault
           - terraform
@@ -46,7 +33,7 @@
       ansible.builtin.debug:
         msg:
           - "✅ HashiCorp tools installed successfully"
-          - "Installed packages: {{ install_result.results | map(attribute='name') | list }}"
+          - "Installed packages: vault, terraform, packer"
 
     - name: 🔍 Verify Vault installation
       ansible.builtin.command: vault --version
@@ -72,4 +59,3 @@
           - "Vault Version: {{ vault_ver.stdout | default('Not Installed') }}"
           - "Terraform Version: {{ terraform_ver.stdout | default('Not Installed') }}"
           - "Packer Version: {{ packer_ver.stdout | default('Not Installed') }}"
-
