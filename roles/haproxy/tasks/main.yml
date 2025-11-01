@@ -1,10 +1,25 @@
 ---
-- name: Install HAProxy
-  package:
-    name: haproxy
+
+- name: 3. Register system to Red Hat
+  ansible.builtin.command: >
+    subscription-manager register --auto-attach
+    --username {{ rhsm_username }}
+    --password {{ rhsm_password }}
+  register: register_output
+  changed_when: "'The system has been registered' in register_output.stdout"
+  ignore_errors: true
+
+- name: 6. Ensure required packages are installed
+  ansible.builtin.package:
+    name:
+      - podman
+      - tar
+      - haproxy
+      - bind
+      - bind-utils 
     state: present
 
-- name: Ensure HAProxy config directory exists
+- name: 7. Ensure HAProxy config directory exists
   file:
     path: /etc/haproxy
     state: directory
@@ -12,7 +27,7 @@
     group: root
     mode: '0755'
 
-- name: Deploy HAProxy configuration
+- name: 8. Deploy HAProxy configuration
   template:
     src: haproxy.cfg.j2
     dest: /etc/haproxy/haproxy.cfg
@@ -21,18 +36,22 @@
     mode: '0644'
   notify: Restart haproxy
 
-- name: Disable SELinux temporarily
+- name: 9. Disable SELinux temporarily
   ansible.builtin.command: setenforce 0
   when: ansible_selinux.status == "enabled"
 
-- name: Disable SELinux permanently
+- name: 10. Disable SELinux permanently
   ansible.builtin.lineinfile:
     path: /etc/selinux/config
     regexp: '^SELINUX='
     line: 'SELINUX=disabled'
-- name: Ensure HAProxy service is enabled and running
+- name: 11. Ensure HAProxy service is enabled and running
   service:
     name: haproxy
     state: started
     enabled: yes
-
+- name: 12. Firewalld Service 
+  service: 
+    name: firewalld 
+    state: stopped 
+    enabled: no 

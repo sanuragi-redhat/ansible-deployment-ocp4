@@ -1,0 +1,15 @@
+---
+- name: Deploy HAProxy
+  hosts: keepha
+  become: yes
+  vars: 
+    rhsm_pool: "" # Optional vaild pool ID
+  vars_prompt: 
+    - name: "rhsm_username" 
+      prompt: "Enter RHN ID "
+      private: no 
+    - name: "rhsm_password" 
+      prompt: "Enter Password " 
+      private: yes
+  roles:
+    - haproxy

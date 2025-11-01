@@ -1,0 +1,134 @@
+[WARNING]: Invalid characters were found in group names but not replaced, use -vvvv to see details
+ ______________________________________________________
+/ PLAY [Deploy HAProxy + Keepalived for OpenShift Load \
+\ Balancing]                                           /
+ ------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ ________________________________________________
+< TASK [haproxy : 3. Register system to Red Hat] >
+ ------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+fatal: [haproxy1.lab.redhat-workshop.in]: FAILED! => {"msg": "The task includes an option with an undefined variable. The error was: 'rhsm_username' is undefined. 'rhsm_username' is undefined\n\nThe error appears to be in '/home/user/ansible-deployment-ocp4/roles/haproxy/tasks/main.yml': line 3, column 3, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n\n- name: 3. Register system to Red Hat\n  ^ here\n"}
+...ignoring
+fatal: [haproxy2.lab.redhat-workshop.in]: FAILED! => {"msg": "The task includes an option with an undefined variable. The error was: 'rhsm_username' is undefined. 'rhsm_username' is undefined\n\nThe error appears to be in '/home/user/ansible-deployment-ocp4/roles/haproxy/tasks/main.yml': line 3, column 3, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n\n- name: 3. Register system to Red Hat\n  ^ here\n"}
+...ignoring
+ ____________________________________________________________
+< TASK [haproxy : 6. Ensure required packages are installed] >
+ ------------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy2.lab.redhat-workshop.in]
+ok: [haproxy1.lab.redhat-workshop.in]
+ ____________________________________________________________
+< TASK [haproxy : 7. Ensure HAProxy config directory exists] >
+ ------------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy2.lab.redhat-workshop.in]
+ok: [haproxy1.lab.redhat-workshop.in]
+ __________________________________________________
+< TASK [haproxy : 8. Deploy HAProxy configuration] >
+ --------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy2.lab.redhat-workshop.in]
+ok: [haproxy1.lab.redhat-workshop.in]
+ _________________________________________________
+< TASK [haproxy : 9. Disable SELinux temporarily] >
+ -------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [haproxy1.lab.redhat-workshop.in]
+changed: [haproxy2.lab.redhat-workshop.in]
+ __________________________________________________
+< TASK [haproxy : 10. Disable SELinux permanently] >
+ --------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy1.lab.redhat-workshop.in]
+ok: [haproxy2.lab.redhat-workshop.in]
+ ___________________________________________________________
+/ TASK [haproxy : 11. Ensure HAProxy service is enabled and \
+\ running]                                                  /
+ -----------------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy2.lab.redhat-workshop.in]
+ok: [haproxy1.lab.redhat-workshop.in]
+ ________________________________________
+< TASK [haproxy : 12. Firewalld Service] >
+ ----------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+ok: [haproxy1.lab.redhat-workshop.in]
+ok: [haproxy2.lab.redhat-workshop.in]
+ ________________________________________
+< TASK [keepalived : Install Keepalived] >
+ ----------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [haproxy2.lab.redhat-workshop.in]
+changed: [haproxy1.lab.redhat-workshop.in]
+ __________________________________________
+< TASK [keepalived : Configure Keepalived] >
+ ------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [haproxy1.lab.redhat-workshop.in]
+changed: [haproxy2.lab.redhat-workshop.in]
+ ___________________________________________________
+< TASK [keepalived : Enable and restart Keepalived] >
+ ---------------------------------------------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+changed: [haproxy1.lab.redhat-workshop.in]
+changed: [haproxy2.lab.redhat-workshop.in]
+ ____________
+< PLAY RECAP >
+ ------------
+       \   ,__,
+        \  (oo)____
+           (__)    )\
+              ||--|| *
+
+haproxy1.lab.redhat-workshop.in : ok=11   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=1
+haproxy2.lab.redhat-workshop.in : ok=11   changed=4    unreachable=0    failed=0    skipped=0    rescued=0    ignored=1
+

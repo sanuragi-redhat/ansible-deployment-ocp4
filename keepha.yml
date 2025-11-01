@@ -1,0 +1,16 @@
+---
+- name: Deploy HAProxy + Keepalived for OpenShift Load Balancing
+  hosts: keepha
+  become: yes
+  vars:
+    vip: 192.168.1.246
+    interface: ens33
+    masters:
+      - 192.168.1.242
+      - 192.168.1.243
+      - 192.168.1.244
+  roles:
+    - haproxy
+    - keepalived
+
+
