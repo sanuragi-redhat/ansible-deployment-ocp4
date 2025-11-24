@@ -2,7 +2,7 @@
 
 - name: 3. Register system to Red Hat
   ansible.builtin.command: >
-    subscription-manager register --auto-attach
+    subscription-manager register 
     --username {{ rhsm_username }}
     --password {{ rhsm_password }}
   register: register_output

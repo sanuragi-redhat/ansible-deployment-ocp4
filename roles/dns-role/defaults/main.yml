@@ -1,95 +1,84 @@
 forward_zone_file: /var/named/forward.zone
 reverse_zone_file: /var/named/reverse.zone
 
-dns_domain: lab.redhat-workshop.in
-default_ip: 192.168.1.254
+dns_domain: prod.blackghost.lab
+default_ip: 192.168.1.250
 serial: 0
 
 dns_records:
-  - name: service-node
+  - name: dns
     type: A
-    value: 192.168.1.254
-  - name: pxe-boot
+    value: 192.168.1.250
+  - name: worklab-ad
     type: A
-    value: 192.168.1.253
-  - name: automation-controller
-    type: A
-    value: 192.168.1.252
-  - name: bastion
-    type: A
-    value: 192.168.1.240
-  - name: bootstrap
+    value: 192.168.1.249
+  - name: bg-mstr-01
     type: A
     value: 192.168.1.241
-  - name: master1
+  - name: bg-mstr-02
     type: A
     value: 192.168.1.242
-  - name: master2
+  - name: bg-mstr-03
     type: A
     value: 192.168.1.243
-  - name: master3
+  - name: bg-boot
+    type: A
+    value: 192.168.1.244
+  - name: bg-vsphere-01
     type: A
     value: 192.168.1.245
-  - name: api
+  - name: bg-work-01
     type: A
     value: 192.168.1.246
-  - name: api-int
-    type: A
-    value: 192.168.1.246
-  - name: '*.apps'
-    type: A
-    value: 192.168.1.246
-  - name: haproxy1
+  - name: bg-ha-01
     type: A
     value: 192.168.1.247
-  - name: haproxy2
+  - name: api
+    type: A
+    value: 192.168.1.247
+  - name: api-int
+    type: A
+    value: 192.168.1.247
+  - name: '*.apps'
+    type: A
+    value: 192.168.1.247
+  - name: ansible-controller
     type: A
     value: 192.168.1.248
   - name: vault
     type: A
-    value: 192.168.1.249
-  - name: quay-mirror
-    type: A
-    value: 192.168.1.250
-  - name: rhv 
-    type: A
-    value: 192.168.1.231 
+    value: 192.168.1.251
 
 dns_records_remove: []
 
 reverse_dns_records:
-  - ip: 192.168.1.254
-    name: service-node
-  - ip: 192.168.1.253
-    name: pxe-boot
-  - ip: 192.168.1.252
-    name: automation-controller
-  - ip: 192.168.1.240
-    name: bastion
+  - ip: 192.168.1.250
+    name: dns
+  - ip: 192.168.1.249
+    name: worklab-ad
   - ip: 192.168.1.241
-    name: bootstrap
+    name: bg-mstr-01
   - ip: 192.168.1.242
-    name: master1
+    name: bg-mstr-02
   - ip: 192.168.1.243
-    name: master2
+    name: bg-mstr-03
   - ip: 192.168.1.244
-    name: master3
+    name: bg-boot
   - ip: 192.168.1.245
-    name: api
+    name: bg-vsphere-01
   - ip: 192.168.1.246
-    name: api-int
-  - ip: 192.168.1.246
-    name: haproxy1
+    name: bg-work-01
   - ip: 192.168.1.247
-    name: haproxy2
+    name: bg-ha-01
+  - ip: 192.168.1.247
+    name: api
+  - ip: 192.168.1.247
+    name: api-int
+  - ip: 192.168.1.248
+    name: ansible-controller
   - ip: 192.168.1.248
     name: vault
-  - ip: 192.168.1.249
-    name: quay-mirror
-  - ip: 192.168.1.250
-    name: api-int
-  - ip: 192.168.1.231
-    name: rhv
+  - ip: 192.168.1.251
 
 
 reverse_dns_records_remove: []

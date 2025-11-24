@@ -1,19 +1,22 @@
 $TTL 1D
-@       IN SOA  root.{{ dns_domain }}. service-node.{{ dns_domain }}. (
+@       IN SOA  root.{{ dns_domain }}. dns.{{ dns_domain }}. (
         {{ serial }}       ; serial
         1D      ; refresh
         1H      ; retry
         1W      ; expire
         3H )    ; minimum
-@       IN      NS      service-node.{{ dns_domain }}.
+@       IN      NS      dns.{{ dns_domain }}.
 
 ; Default PTR for domain
 @       IN      PTR     {{ dns_domain }}.
 
 ; Loop through reverse records
+{% set remove_list = reverse_dns_records_remove | default([]) %}
 {% for record in reverse_dns_records %}
-{% if record.ip not in reverse_dns_records_remove | map(attribute='ip') | list %}
+  {% if record.ip is defined and record.name is defined %}
+    {% if record.ip not in (remove_list | map(attribute='ip') | list) %}
 {{ record.ip.split('.')[-1] }}   IN  PTR {{ record.name }}.{{ dns_domain }}.
-{% endif %}
+    {% endif %}
+  {% endif %}
 {% endfor %}
 

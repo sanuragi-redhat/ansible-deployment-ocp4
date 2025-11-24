@@ -1,0 +1,120 @@
+- name: check mode modify user1 audit policy rule directory
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_checkmode_user1
+  check_mode: yes
+
+- name: modify user1 audit policy rule directory
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_change1_user1
+
+- name: idempotent modify user1 audit policy rule directory
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_change2_user1
+
+- name: Assert directory modify tasks
+  assert:
+    that:
+    - directory_checkmode_user1 is changed
+    - directory_change1_user1 is changed
+    - directory_change2_user1 is not changed
+    - directory_checkmode_user1.path_type == 'directory'
+    - directory_change1_user1.path_type == 'directory'
+    - directory_change2_user1.path_type == 'directory'
+    - directory_change1_user1.current_audit_rules[0].rights == "Delete, Read, ChangePermissions"
+    - directory_change1_user1.current_audit_rules[1].rights == "Delete"
+
+- name: check mode modify user1 audit policy rule file
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_checkmode
+  check_mode: yes
+
+- name: modify user1 audit policy rule file
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_change1
+
+- name: idempotent modify user1 audit policy rule file
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_change2
+
+- name: Assert file modify tasks
+  assert:
+    that:
+    - file_checkmode is changed
+    - file_change1 is changed
+    - file_change2 is not changed
+    - file_checkmode.path_type == 'file'
+    - file_change1.path_type == 'file'
+    - file_change2.path_type == 'file'
+    - file_change1.current_audit_rules.rights == "Delete, ChangePermissions"
+
+- name: check mode modify user1 audit policy rule registry
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_checkmode
+  check_mode: yes
+
+- name:  modify user1 audit policy rule registry
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_change1
+
+- name: idempotent modify user1 audit policy rule registry
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights2 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_change2
+
+- name: Assert registry modify tasks
+  assert:
+    that:
+    - registry_checkmode is changed
+    - registry_change1 is changed
+    - registry_change2 is not changed
+    - registry_checkmode.path_type == 'registry'
+    - registry_change1.path_type == 'registry'
+    - registry_change2.path_type == 'registry'
+    - registry_change1.current_audit_rules.rights == "Delete, ChangePermissions"

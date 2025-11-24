@@ -1,0 +1,58 @@
+- hosts: win-mig
+  gather_facts: no
+  collections:
+    - ansible.windows
+
+  tasks:
+
+    # 1. Detect active interface automatically
+    - name: Detect actual interface
+      ansible.windows.win_shell: |
+        (Get-NetIPConfiguration | Where-Object {$_.IPv4Address}).InterfaceAlias
+      register: iface
+      args:
+        executable: powershell
+
+    - name: Set interface fact
+      set_fact:
+        interface_name: "{{ iface.stdout_lines[0] | trim }}"
+
+    # 2. Get current DHCP information
+    - name: Get current network info from DHCP
+      ansible.windows.win_shell: |
+        $nic = Get-NetIPConfiguration -InterfaceAlias "{{ interface_name }}"
+        $obj = [PSCustomObject]@{
+          IP      = $nic.IPv4Address.IPAddress
+          Mask    = $nic.IPv4Address.PrefixLength
+          Gateway = $nic.IPv4DefaultGateway.NextHop
+          DNS     = ($nic.DnsServer.ServerAddresses -join ",")
+        }
+        $obj | ConvertTo-Json -Depth 4
+      register: netinfo
+      args:
+        executable: powershell
+
+    - name: Convert JSON to dict
+      set_fact:
+        ipinfo: "{{ netinfo.stdout | trim | from_json }}"
+
+    # 5. Apply static IP
+    - name: Apply static IP
+      ansible.windows.win_shell: |
+        New-NetIPAddress `
+          -InterfaceAlias "{{ interface_name }}" `
+          -IPAddress "{{ ipinfo.IP }}" `
+          -PrefixLength {{ ipinfo.Mask }} `
+          -DefaultGateway "{{ ipinfo.Gateway }}"
+      args:
+        executable: powershell
+
+    # Override DHCP DNS → your custom DNS
+    - name: Set static DNS servers (192.168.1.250, 8.8.8.8)
+      ansible.windows.win_shell: |
+        Set-DnsClientServerAddress `
+          -InterfaceAlias "{{ interface_name }}" `
+          -ServerAddresses @("192.168.1.250","8.8.8.8")
+      args:
+        executable: powershell
+

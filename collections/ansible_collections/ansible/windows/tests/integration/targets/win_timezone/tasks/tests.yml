@@ -1,0 +1,157 @@
+- name: Change timezone to GMT+1 - check mode
+  win_timezone:
+    timezone: Romance Standard Time
+  register: romance_check
+  check_mode: true
+
+- name: Get result of change timezone to GMT+1 - check mode
+  win_command: tzutil.exe /g
+  register: romance_actual_check
+  changed_when: false
+
+- name: Test GMT+1 timezone - check mode
+  assert:
+    that:
+    - romance_check is change
+    - romance_check.previous_timezone == 'GMT Standard Time'
+    - romance_check.timezone == 'Romance Standard Time'
+    - romance_actual_check.stdout == 'GMT Standard Time'
+
+- name: Change timezone to GMT+1
+  win_timezone:
+    timezone: Romance Standard Time
+  register: romance
+
+- name: Get result of change timezone to GMT+1
+  win_command: tzutil.exe /g
+  register: romance_actual
+  changed_when: false
+
+- name: Test GMT+1 timezone
+  assert:
+    that:
+    - romance is change
+    - romance.previous_timezone == 'GMT Standard Time'
+    - romance.timezone == 'Romance Standard Time'
+    - romance_actual.stdout == 'Romance Standard Time'
+
+- name: Change timezone to GMT+1 again
+  win_timezone:
+    timezone: Romance Standard Time
+  register: romance_again
+
+- name: Test GMT+1 timezone again
+  assert:
+    that:
+    - not romance_again is changed
+    - romance_again.timezone == 'Romance Standard Time'
+    - romance_again.previous_timezone == 'Romance Standard Time'
+
+- name: Change timezone to GMT+6 - check
+  win_timezone:
+    timezone: Central Standard Time
+  register: central_check
+  check_mode: true
+
+- name: Get result of change timezone to GMT+6 - check
+  win_command: tzutil.exe /g
+  register: central_actual_check
+  changed_when: false
+
+- name: Test GMT+6 timezone - check
+  assert:
+    that:
+    - central_check is change
+    - central_check.previous_timezone == 'Romance Standard Time'
+    - central_check.timezone == 'Central Standard Time'
+    - central_actual_check.stdout == 'Romance Standard Time'
+
+- name: Change timezone to GMT+6
+  win_timezone:
+    timezone: Central Standard Time
+  register: central
+
+- name: Get result of change timezone to GMT+6
+  win_command: tzutil.exe /g
+  register: central_actual
+  changed_when: false
+
+- name: Test GMT+6 timezone
+  assert:
+    that:
+    - central is changed
+    - central.previous_timezone == 'Romance Standard Time'
+    - central.timezone == 'Central Standard Time'
+    - central_actual.stdout == 'Central Standard Time'
+
+- name: Change timezone to GMT+6 again
+  win_timezone:
+    timezone: Central Standard Time
+  register: central_again
+
+- name: Test GMT+6 timezone again
+  assert:
+    that:
+    - not central_again is changed
+    - central_again.timezone == 'Central Standard Time'
+    - central_again.previous_timezone == 'Central Standard Time'
+
+- name: Change timezone to dstoff - check
+  win_timezone:
+    timezone: Eastern Standard Time_dstoff
+  register: dstoff_check
+  check_mode: true
+
+- name: Get result of change timezone to dstoff - check
+  win_command: tzutil.exe /g
+  register: dstoff_actual_check
+  changed_when: false
+
+- name: Test dstoff timezone - check
+  assert:
+    that:
+    - dstoff_check is change
+    - dstoff_check.previous_timezone == 'Central Standard Time'
+    - dstoff_check.timezone == 'Eastern Standard Time_dstoff'
+    - dstoff_actual_check.stdout == 'Central Standard Time'
+
+- name: Change timezone to dstoff
+  win_timezone:
+    timezone: Eastern Standard Time_dstoff
+  register: dstoff
+
+- name: Get result of change timezone to dstoff
+  win_command: tzutil.exe /g
+  register: dstoff_actual
+  changed_when: false
+
+- name: Test dstoff timezone
+  assert:
+    that:
+    - dstoff is changed
+    - dstoff.previous_timezone == 'Central Standard Time'
+    - dstoff.timezone == 'Eastern Standard Time_dstoff'
+    - dstoff_actual.stdout == 'Eastern Standard Time_dstoff'
+
+- name: Change timezone to GMT+666 again
+  win_timezone:
+    timezone: Eastern Standard Time_dstoff
+  register: dstoff_again
+
+- name: Test GMT+666 timezone again
+  assert:
+    that:
+    - not dstoff_again is changed
+    - dstoff_again.timezone == 'Eastern Standard Time_dstoff'
+    - dstoff_again.previous_timezone == 'Eastern Standard Time_dstoff'
+
+- name: Change timezone to GMT+666
+  win_timezone:
+    timezone: Dag's Standard Time
+  register: dag
+  ignore_errors: yes
+
+- name: Test GMT+666 timezone
+  assert:
+    that:
+    - dag is failed

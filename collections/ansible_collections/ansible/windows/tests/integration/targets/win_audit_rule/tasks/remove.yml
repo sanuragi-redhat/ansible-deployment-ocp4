@@ -1,0 +1,124 @@
+- name: check mode remove directory rule user1
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: directory_checkmode_user1
+  check_mode: yes
+
+- name: remove directory rule user1
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: directory_change1_user1
+
+- name: idempotent remove directory rule user1
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: directory_change2_user1
+
+- name: remove directory rule user2
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user2 }}"
+    state: absent
+    rights: Delete
+  register: directory_change1_user2
+
+- name: remove directory rule user2
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user2 }}"
+    state: absent
+  register: directory_change2_user2
+
+- name: assert that the above directory task occurred
+  assert:
+    that:
+    - directory_checkmode_user1 is changed
+    - directory_change1_user1 is changed
+    - directory_change2_user1 is not changed
+    - directory_checkmode_user1.path_type == 'directory'
+    - directory_change1_user1.path_type == 'directory'
+    - directory_change2_user1.path_type == 'directory'
+    - directory_checkmode_user1.current_audit_rules[0].rights == "Delete, Read, ChangePermissions"
+    - directory_change1_user1.current_audit_rules.rights == "Delete"
+    - directory_change1_user2.current_audit_rules | length == 0
+
+- name: check mode remove file rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: file_checkmode
+  check_mode: yes
+
+
+- name: remove file rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: file_change1
+
+
+- name: idempotent remove file rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: file_change2
+
+
+- name: assert that the above file task occurred
+  assert:
+    that:
+    - file_checkmode is changed
+    - file_change1 is changed
+    - file_change2 is not changed
+    - file_checkmode.path_type == 'file'
+    - file_change1.path_type == 'file'
+    - file_change2.path_type == 'file'
+    - file_checkmode.current_audit_rules.rights == "Delete, ChangePermissions"
+    - file_change1.current_audit_rules | length == 0
+
+
+
+- name: check mode remove registry rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: registry_checkmode
+  check_mode: yes
+
+- name: remove registry rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: registry_change1
+
+
+- name: idempotent remove registry rule
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    state: absent
+  register: registry_change2
+
+
+- name: assert that the above register task occurred
+  assert:
+    that:
+    - registry_checkmode is changed
+    - registry_change1 is changed
+    - registry_change2 is not changed
+    - registry_checkmode.path_type == 'registry'
+    - registry_change1.path_type == 'registry'
+    - registry_change2.path_type == 'registry'
+    - registry_checkmode.current_audit_rules.rights == "Delete, ChangePermissions"
+    - registry_change1.current_audit_rules | length == 0

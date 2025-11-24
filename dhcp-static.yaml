@@ -1,0 +1,47 @@
+---
+- name: Convert DHCP IP to Static on Windows
+  hosts: win-mig
+  gather_facts: no
+  collections:
+    - ansible.windows
+
+  vars:
+    interface_name: "Ethernet"
+
+  tasks:
+
+    - name: Get current network info from DHCP
+      ansible.windows.win_shell: |
+        $nic = Get-NetIPConfiguration -InterfaceAlias "{{ interface_name }}"
+        $obj = New-Object PSObject -Property @{
+          IP = $nic.IPv4Address.IPAddress
+          Mask = $nic.IPv4Address.PrefixLength
+          Gateway = $nic.IPv4DefaultGateway.NextHop
+          DNS = ($nic.DnsServer.ServerAddresses -join ",")
+        }
+        $obj | ConvertTo-Json
+      register: netinfo
+      args:
+        executable: powershell
+
+    - name: Convert JSON to dict
+      set_fact:
+        ipinfo: "{{ netinfo.stdout | from_json }}"
+
+    - name: Show detected DHCP details
+      debug:
+        msg:
+          - "DHCP IP: {{ ipinfo.IP }}"
+          - "Mask Prefix: {{ ipinfo.Mask }}"
+          - "Gateway: {{ ipinfo.Gateway }}"
+          - "DNS: {{ ipinfo.DNS }}"
+    - name: Convert DHCP IP to Static
+      ansible.windows.win_shell: |
+        New-NetIPAddress `
+          -InterfaceAlias "Ethernet" `
+          -IPAddress "{{ ipinfo.IP }}" `
+          -PrefixLength {{ ipinfo.Mask }} `
+          -DefaultGateway "{{ ipinfo.Gateway }}"
+      args:
+        executable: powershell
+

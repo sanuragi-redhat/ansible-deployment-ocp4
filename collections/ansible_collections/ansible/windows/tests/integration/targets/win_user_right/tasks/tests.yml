@@ -1,0 +1,434 @@
+---
+- name: Look up built-in Administrator account name (-500 user whose domain == computer name)
+  ansible.builtin.raw: |
+    $machine_sid = (Get-CimInstance Win32_UserAccount -Filter "Domain='$env:COMPUTERNAME'")[0].SID -replace '(S-1-5-21-\d+-\d+-\d+)-\d+', '$1';
+    (Get-CimInstance Win32_UserAccount -Filter "SID='$machine_sid-500'").Name
+  check_mode: false
+  changed_when: false
+  register: admin_account_result
+
+- name: Get admin account name
+  ansible.builtin.set_fact:
+    admin_account_name: "{{ admin_account_result.stdout_lines[0] }}"
+
+- name: Fail to set invalid right
+  ansible.windows.win_user_right:
+    name: FailRight
+    users: '{{ admin_account_name }}'
+  register: fail_invalid_right
+  failed_when: fail_invalid_right.msg != 'the specified right FailRight is not a valid right'
+
+- name: Fail with invalid username
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: FakeUser
+  register: fail_invalid_user
+  failed_when: fail_invalid_user.msg != "Failed to translate the account 'FakeUser' to a SID"
+
+- name: Remove from empty right check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Administrators']
+    action: remove
+  register: remove_empty_right_check
+  check_mode: true
+
+- name: Assert remove from empty right check
+  ansible.builtin.assert:
+    that:
+      - remove_empty_right_check is not changed
+      - remove_empty_right_check.added == []
+      - remove_empty_right_check.removed == []
+
+- name: Remove from empty right
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Administrators']
+    action: remove
+  register: remove_empty_right
+  check_mode: true
+
+- name: Assert remove from empty right
+  ansible.builtin.assert:
+    that:
+      - remove_empty_right is not changed
+      - remove_empty_right.added == []
+      - remove_empty_right.removed == []
+
+- name: Set administrator check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: '{{ admin_account_name }}'
+    action: set
+  register: set_administrator_check
+  check_mode: true
+
+- name: Get actual set administrator check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: set_administrator_actual_check
+
+- name: Assert set administrator check
+  ansible.builtin.assert:
+    that:
+      - set_administrator_check is changed
+      - set_administrator_check.added|count == 1
+      - set_administrator_check.added[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - set_administrator_check.removed == []
+      - set_administrator_actual_check.users == []
+
+- name: Set administrator
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: '{{ admin_account_name }}'
+    action: set
+  register: set_administrator
+
+- name: Get actual set administrator
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: set_administrator_actual
+
+- name: Assert set administrator check
+  ansible.builtin.assert:
+    that:
+      - set_administrator is changed
+      - set_administrator.added|count == 1
+      - set_administrator.added[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - set_administrator.removed == []
+      - set_administrator_actual.users == [admin_account_name]
+
+- name: Set administrator again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: '{{ admin_account_name }}'
+    action: set
+  register: set_administrator_again
+
+- name: Assert set administrator check
+  ansible.builtin.assert:
+    that:
+      - set_administrator_again is not changed
+      - set_administrator_again.added == []
+      - set_administrator_again.removed == []
+
+- name: Remove from right check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users', '.\Backup Operators']
+    action: remove
+  register: remove_right_check
+  check_mode: true
+
+- name: Get actual remove from right check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: remove_right_actual_check
+
+- name: Assert remove from right check
+  ansible.builtin.assert:
+    that:
+      - remove_right_check is changed
+      - remove_right_check.removed|count == 1
+      - remove_right_check.removed[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - remove_right_check.added == []
+      - remove_right_actual_check.users == [admin_account_name]
+
+- name: Remove from right
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users', '.\Backup Operators']
+    action: remove
+  register: remove_right
+
+- name: Get actual remove from right
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: remove_right_actual
+
+- name: Assert remove from right
+  ansible.builtin.assert:
+    that:
+      - remove_right is changed
+      - remove_right.removed|count == 1
+      - remove_right.removed[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - remove_right.added == []
+      - remove_right_actual.users == []
+
+- name: Remove from right again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users', '.\Backup Operators']
+    action: remove
+  register: remove_right_again
+
+- name: Assert remove from right
+  ansible.builtin.assert:
+    that:
+      - remove_right_again is not changed
+      - remove_right_again.removed == []
+      - remove_right_again.added == []
+
+- name: Add to empty right check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Administrators']
+    action: add
+  register: add_right_on_empty_check
+  check_mode: true
+
+- name: Get actual add to empty right check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: add_right_on_empty_actual_check
+
+- name: Assert add to empty right check
+  ansible.builtin.assert:
+    that:
+      - add_right_on_empty_check is changed
+      - add_right_on_empty_check.removed == []
+      - add_right_on_empty_check.added|count == 2
+      - add_right_on_empty_check.added[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - add_right_on_empty_check.added[1] == 'BUILTIN\Administrators'
+      - add_right_on_empty_actual_check.users == []
+
+- name: Add to empty right
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Administrators']
+    action: add
+  register: add_right_on_empty
+
+- name: Get actual add to empty right
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: add_right_on_empty_actual
+
+- name: Assert add to empty right
+  ansible.builtin.assert:
+    that:
+      - add_right_on_empty is changed
+      - add_right_on_empty.removed == []
+      - add_right_on_empty.added|count == 2
+      - add_right_on_empty.added[0]|upper == ansible_hostname|upper + "\\" + admin_account_name|upper
+      - add_right_on_empty.added[1] == 'BUILTIN\Administrators'
+      - add_right_on_empty_actual.users == [admin_account_name, "BUILTIN\\Administrators"]
+
+- name: Add to empty right again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Administrators']
+    action: add
+  register: add_right_on_empty_again
+
+- name: Assert add to empty right
+  ansible.builtin.assert:
+    that:
+      - add_right_on_empty_again is not changed
+      - add_right_on_empty_again.removed == []
+      - add_right_on_empty_again.added == []
+
+- name: Add to existing right check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users']
+    action: add
+  register: add_right_on_existing_check
+  check_mode: true
+
+- name: Get actual add to existing right check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: add_right_on_existing_actual_check
+
+- name: Assert add to existing right check
+  ansible.builtin.assert:
+    that:
+      - add_right_on_existing_check is changed
+      - add_right_on_existing_check.removed == []
+      - add_right_on_existing_check.added == ["BUILTIN\\Guests", "BUILTIN\\Users"]
+      - add_right_on_existing_actual_check.users == [admin_account_name, "BUILTIN\\Administrators"]
+
+- name: Add to existing right
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users']
+    action: add
+  register: add_right_on_existing
+
+- name: Get actual add to existing right
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: add_right_on_existing_actual
+
+- name: Assert add to existing right
+  ansible.builtin.assert:
+    that:
+      - add_right_on_existing is changed
+      - add_right_on_existing.removed == []
+      - add_right_on_existing.added == ["BUILTIN\\Guests", "BUILTIN\\Users"]
+      - add_right_on_existing_actual.users == [admin_account_name, "BUILTIN\\Administrators", "BUILTIN\\Users", "BUILTIN\\Guests"]
+
+- name: Add to existing right again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['{{ admin_account_name }}', 'Guests', '{{ ansible_hostname }}\Users']
+    action: add
+  register: add_right_on_existing_again
+
+- name: Assert add to existing right
+  ansible.builtin.assert:
+    that:
+      - add_right_on_existing_again is not changed
+      - add_right_on_existing_again.removed == []
+      - add_right_on_existing_again.added == []
+
+- name: Remove from existing check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Guests', '{{ admin_account_name }}']
+    action: remove
+  register: remove_on_existing_check
+  check_mode: true
+
+- name: Get actual remove from existing check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: remove_on_existing_actual_check
+
+- name: Assert remove from existing check
+  ansible.builtin.assert:
+    that:
+      - remove_on_existing_check is changed
+      - remove_on_existing_check.removed == ["BUILTIN\\Guests", ansible_hostname|upper + "\\" + admin_account_name]
+      - remove_on_existing_check.added == []
+      - remove_on_existing_actual_check.users == [admin_account_name, "BUILTIN\\Administrators", "BUILTIN\\Users", "BUILTIN\\Guests"]
+
+- name: Remove from existing
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Guests', '{{ admin_account_name }}']
+    action: remove
+  register: remove_on_existing
+
+- name: Get actual remove from existing
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: remove_on_existing_actual
+
+- name: Assert remove from existing
+  ansible.builtin.assert:
+    that:
+      - remove_on_existing is changed
+      - remove_on_existing.removed == ["BUILTIN\\Guests", ansible_hostname|upper + "\\" + admin_account_name]
+      - remove_on_existing.added == []
+      - remove_on_existing_actual.users == ["BUILTIN\\Administrators", "BUILTIN\\Users"]
+
+- name: Remove from existing again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Guests', '{{ admin_account_name }}']
+    action: remove
+  register: remove_on_existing_again
+
+- name: Assert remove from existing again
+  ansible.builtin.assert:
+    that:
+      - remove_on_existing_again is not changed
+      - remove_on_existing_again.removed == []
+      - remove_on_existing_again.added == []
+
+- name: Set to existing check
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Administrators', 'SYSTEM', 'Backup Operators']
+    action: set
+  register: set_on_existing_check
+  check_mode: true
+
+- name: Get actual set to existing check
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: set_on_existing_actual_check
+
+- name: Assert set to existing check
+  ansible.builtin.assert:
+    that:
+      - set_on_existing_check is changed
+      - set_on_existing_check.removed == ["BUILTIN\\Users"]
+      - set_on_existing_check.added == ["NT AUTHORITY\\SYSTEM", "BUILTIN\\Backup Operators"]
+      - set_on_existing_actual_check.users == ["BUILTIN\\Administrators", "BUILTIN\\Users"]
+
+- name: Set to existing
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Administrators', 'SYSTEM', 'Backup Operators']
+    action: set
+  register: set_on_existing
+
+- name: Get actual set to existing
+  test_get_right:
+    name: '{{ test_win_user_right_name }}'
+  register: set_on_existing_actual
+
+- name: Assert set to existing
+  ansible.builtin.assert:
+    that:
+      - set_on_existing is changed
+      - set_on_existing.removed == ["BUILTIN\\Users"]
+      - set_on_existing.added == ["NT AUTHORITY\\SYSTEM", "BUILTIN\\Backup Operators"]
+      - set_on_existing_actual.users == ["NT AUTHORITY\\SYSTEM", "BUILTIN\\Administrators", "BUILTIN\\Backup Operators"]
+
+- name: Set to existing again
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users: ['Administrators', 'SYSTEM', 'Backup Operators']
+    action: set
+  register: set_on_existing_again
+
+- name: Assert set to existing
+  ansible.builtin.assert:
+    that:
+      - set_on_existing_again is not changed
+      - set_on_existing_again.removed == []
+      - set_on_existing_again.added == []
+
+- name: Create test account
+  ansible.windows.win_user:
+    name: test ansible
+    password: Password123!
+    state: present
+    groups:
+      - Users
+  register: test_user
+
+- name: Add test account to right
+  block:
+    - name: Add test account to right
+      ansible.windows.win_user_right:
+        name: '{{ test_win_user_right_name }}'
+        users:
+          - test ansible
+        action: add
+
+  always:
+    - name: Remove test account
+      ansible.windows.win_user:
+        name: test ansible
+        state: absent
+
+- name: Test that orphaned accounts can be manipulated without a failure
+  ansible.windows.win_user_right:
+    name: '{{ test_win_user_right_name }}'
+    users:
+      - Administrators
+      - SYSTEM
+      - Backup Operators
+  register: remove_orphaned_account
+
+- name: Assert orphaned account was removed
+  ansible.builtin.assert:
+    that:
+      - remove_orphaned_account is changed
+      - remove_orphaned_account.added == []
+      - remove_orphaned_account.removed == [ test_user.sid ]

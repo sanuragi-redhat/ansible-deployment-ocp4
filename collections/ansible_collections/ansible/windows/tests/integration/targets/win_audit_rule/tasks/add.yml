@@ -1,0 +1,167 @@
+- name: check mode add to user1 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_checkmode_user1
+  check_mode: yes
+
+- name: add to user1 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_change1_user1
+
+- name: add rights to user1 (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights3 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_change2_user1
+
+
+- name: idempotent add to user1 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: directory_change3_user1
+
+- name: check mode add to user2 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user2 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: "{{ test_audit_rule_inheritance_flags }}"
+  register: directory_checkmode_user2
+  check_mode: yes
+
+- name: add to user2 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user2 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: "{{ test_audit_rule_inheritance_flags }}"
+  register: directory_change1_user2
+
+- name: idempotent add to user2 an audit policy rule (directory)
+  win_audit_rule:
+    path: "{{ test_audit_rule_directory }}"
+    user: "{{ test_audit_rule_user2 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: "{{ test_audit_rule_inheritance_flags }}"
+  register: directory_change2_user2
+
+- name: Assert directory add tasks
+  assert:
+    that:
+    - directory_checkmode_user1 is changed
+    - directory_change1_user1 is changed
+    - directory_change2_user1 is changed
+    - directory_change3_user1 is not changed
+    - directory_checkmode_user1.path_type == 'directory'
+    - directory_change1_user1.path_type == 'directory'
+    - directory_change2_user1.path_type == 'directory'
+    - directory_checkmode_user2 is changed
+    - directory_change1_user2 is changed
+    - directory_change2_user2 is not changed
+    - directory_checkmode_user2.path_type == 'directory'
+    - directory_change1_user2.path_type == 'directory'
+    - directory_change2_user2.path_type == 'directory'
+    - directory_change1_user1.current_audit_rules.rights == "Delete"
+    - directory_change2_user1.current_audit_rules.rights == "Delete, Read"
+    - directory_change1_user2.current_audit_rules[1].rights == "Delete"
+
+- name: check mode add to user1 an audit policy (file)
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_checkmode
+  check_mode: yes
+
+- name: add audit policy (file)
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_change1
+
+- name: idempotent add audit policy (file)
+  win_audit_rule:
+    path: "{{ test_audit_rule_file }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+    inheritance_flags: none
+  register: file_change2
+
+- name: Assert file add tasks
+  assert:
+    that:
+    - file_checkmode is changed
+    - file_change1 is changed
+    - file_change2 is not changed
+    - file_checkmode.path_type == 'file'
+    - file_change1.path_type == 'file'
+    - file_change2.path_type == 'file'
+
+- name: check mode add to user1 an audit policy (registry)
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_checkmode
+  check_mode: yes
+
+- name: add to user1 an audit policy (registry)
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_change1
+
+- name: idempotent add to user1 an audit policy (registry)
+  win_audit_rule:
+    path: "{{ test_audit_rule_registry }}"
+    user: "{{ test_audit_rule_user1 }}"
+    rights: "{{ test_audit_rule_rights1 }}"
+    state: present
+    audit_flags: "{{ test_audit_rule_audit_flags }}"
+  register: registry_change2
+
+- name: Assert registry add tasks
+  assert:
+    that:
+    - registry_checkmode is changed
+    - registry_change1 is changed
+    - registry_change2 is not changed
+    - registry_checkmode.path_type == 'registry'
+    - registry_change1.path_type == 'registry'
+    - registry_change2.path_type == 'registry'

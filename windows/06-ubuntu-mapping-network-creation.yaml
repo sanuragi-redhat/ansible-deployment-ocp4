@@ -1,0 +1,103 @@
+---
+- name: Configure Ubuntu network and proxy
+  hosts: remote
+  become: true
+  vars:
+    target_user: cloud-ops
+    target_file_name: /etc/netplan/01-network-manager-all.yaml
+    new_gateway: "192.168.1.1"
+    http_proxy: "http://10.38.107.203:3120"
+    https_proxy: "http://10.38.107.203:3120"
+    no_proxy: "localhost,minio-api.apps.vcollab-cl1.cloud.vssi.com"
+    var_default_prefix: 24
+    interface_name: enp1s0
+    ssh_key_path: "~/.ssh/id_rsa.pub" 
+
+    # Host-specific static IPs
+    host_ip_map:
+      ubuntu-1: "192.168.1.10"
+      ubuntu-2: "192.168.1.11"
+
+  tasks:
+
+    - name: Ensure SSH key exists
+      ansible.builtin.stat:
+        path: /root/.ssh/id_rsa
+      register: ssh_key
+
+    - name: Generate SSH key if not present
+      ansible.builtin.command: ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
+      when: not ssh_key.stat.exists
+
+
+    - name: Read public key content
+      delegate_to: localhost
+      slurp:
+        src: "{{ ssh_key_path }}"
+      register: public_key
+
+    - name: Add public key to authorized_keys on remote hosts
+      authorized_key:
+        user: "{{ ansible_user }}"
+        key: "{{ public_key.content | b64decode }}"
+        state: present
+
+    - name: Verify passwordless SSH works
+      command: whoami
+      register: ssh_test
+
+    - name: Display result
+      debug:
+        msg: "Passwordless SSH setup for {{ inventory_hostname }}: {{ ssh_test.stdout }}"
+
+    - name: Determine static IP for this host
+      set_fact:
+        static_ip: "{{ host_ip_map[inventory_hostname] }}"
+
+    - name: Configure proxy – http
+      lineinfile:
+        path: /etc/environment
+        regexp: '^http_proxy='
+        line: "http_proxy={{ http_proxy }}"
+
+    - name: Configure proxy – https
+      lineinfile:
+        path: /etc/environment
+        regexp: '^https_proxy='
+        line: "https_proxy={{ https_proxy }}"
+
+    - name: Configure proxy – no_proxy
+      lineinfile:
+        path: /etc/environment
+        regexp: '^no_proxy='
+        line: "no_proxy={{ no_proxy }}"
+
+    - name: Backup existing netplan file
+      copy:
+        remote_src: true
+        src: "{{ target_file_name }}"
+        dest: "{{ target_file_name }}_backup_{{ ansible_date_time.iso8601 }}"
+
+    - name: Configure static IP in netplan
+      copy:
+        dest: "{{ target_file_name }}"
+        content: |
+          network:
+            version: 2
+            ethernets:
+              {{ interface_name }}:
+                dhcp4: false
+                addresses: ["{{ static_ip }}/{{ var_default_prefix }}"]
+                gateway4: {{ new_gateway }}
+                nameservers:
+                  addresses: ["192.168.1.250", "8.8.8.8"]
+      notify:
+        - Apply netplan
+
+    - name: Remove controller’s public key for passwordless SSH
+      ansible.builtin.file:
+        dest: "/home/{{ target_user }}/.ssh/authorized_keys"
+        state: absent
+  handlers:
+    - name: Apply netplan
+      command: netplan apply

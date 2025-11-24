@@ -12,7 +12,7 @@
     oc_mirror_url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ ocp_version }}/oc-mirror.tar.gz"
     oc_client_url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.19.18/openshift-client-linux-amd64-rhel8-{{ ocp_version }}.tar.gz"
     oc_install_url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ ocp_version }}/openshift-install-linux.tar.gz"
-    mirror_registry_url: "https://developers.redhat.com/content-gateway/file/pub/openshift-v4/clients/mirror-registry/{{ mirror_registry_version }}/mirror-registry.tar.gz"
+    #mirror_registry_url: "https://developers.redhat.com/content-gateway/file/pub/openshift-v4/clients/mirror-registry/{{ mirror_registry_version }}/mirror-registry.tar.gz"
 
     # Destination paths
     download_dir: /tmp/openshift-tools
@@ -50,11 +50,11 @@
         dest: "{{ download_dir }}/openshift-install-linux.tar.gz"
         mode: '0644'
 
-    - name: 6. Download Mirror Registry 
-      ansible.builtin.get_url:
-        url: "{{ mirror_registry_url }}"
-        dest: "{{ mirror_dir }}/mirror-registry.tar.gz"
-        mode: '0644'
+    #- name: 6. Download Mirror Registry 
+    #  ansible.builtin.get_url:
+    #    url: "{{ mirror_registry_url }}"
+    #    dest: "{{ mirror_dir }}/mirror-registry.tar.gz"
+    #    mode: '0644'
 
     - name: 7. Extract all ocp binaries tarballs 
       ansible.builtin.unarchive:
@@ -65,7 +65,7 @@
         - "{{ download_dir }}/oc-mirror.tar.gz"
         - "{{ download_dir }}/openshift-client-linux.tar.gz"
         - "{{ download_dir }}/openshift-install-linux.tar.gz"
-        - "{{ mirror_dir }}/mirror-registry.tar.gz"
+    #    - "{{ mirror_dir }}/mirror-registry.tar.gz"
 
     - name: 8. Ensure binaries are executable
       ansible.builtin.file:

@@ -1,0 +1,77 @@
+---
+- name: Configure a static IP address using win_powershell
+  hosts: win-mig
+  gather_facts: yes
+  collections:
+    - ansible.windows
+
+  vars:
+    interface_name: "Ethernet"
+    static_ip: "192.168.1.7"
+    prefix_length: 24
+    gateway: "192.168.1.1"
+    dns_server: "8.8.8.8"
+    proxy_url: "http://10.38.107.203:3120"
+
+  tasks:
+    - name: Set IP address, gateway, and DNS for the specified interface
+      ansible.windows.win_powershell:
+        script: |
+          $interface = Get-NetAdapter -Name "{{ interface_name }}"
+          
+          Get-NetIPAddress -InterfaceIndex $interface.IfIndex -AddressFamily IPv4 | Remove-NetIPAddress -Confirm:$false
+          
+          New-NetIPAddress -InterfaceIndex $interface.IfIndex -IPAddress "{{ static_ip }}" -PrefixLength {{ prefix_length }}
+          
+          New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceAlias "{{ interface_name }}" -NextHop "{{ gateway }}"
+          
+          Set-DnsClientServerAddress -InterfaceIndex $interface.IfIndex -ServerAddresses ("{{ dns_server }}")
+
+      args:
+        executable: powershell.exe
+      async: 60 
+      poll: 5 
+      register: ip_config_output
+      run_once: true 
+
+
+    - name: Display results of the configuration task
+      ansible.builtin.debug:
+        var: ip_config_output.output
+
+---
+- name: Setting up the proxy server
+  hosts: win-mig
+  ignore_errors: true
+  gather_facts: yes
+  collections:
+    - ansible.windows
+  vars:
+    win_user: "redhat"
+    win_pass: "redhat"
+    new_gateway: "192.168.1.1"
+    interface_name: "Ethernet"
+    proxy_url: "http://10.38.107.203:3120"
+  tasks:
+    - name: Set WinRM connection
+      ansible.builtin.set_fact:
+        ansible_user: "{{ win_user }}"
+        ansible_password: "{{ win_pass }}"
+        ansible_connection: winrm
+        ansible_winrm_transport: basic
+        ansible_port: 5985
+
+    - name: Configure persistent system-wide proxy
+      ansible.windows.win_regedit:
+        path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+        name: ProxyServer
+        data: "{{ proxy_url }}"
+        type: string
+
+    - name: Enable proxy
+      ansible.windows.win_regedit:
+        path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+        name: ProxyEnable
+        data: 1
+        type: dword
+

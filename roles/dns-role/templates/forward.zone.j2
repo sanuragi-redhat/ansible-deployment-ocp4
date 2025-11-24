@@ -1,11 +1,11 @@
 $TTL 1D
-@       IN SOA  root.{{ dns_domain }}. service-node.{{ dns_domain }}. (
+@       IN SOA  root.{{ dns_domain }}. dns.{{ dns_domain }}. (
         {{ serial }}       ; serial
         1D      ; refresh
         1H      ; retry
         1W      ; expire
         3H )    ; minimum
-@       IN      NS      service-node.{{ dns_domain }}.
+@       IN      NS      dns.{{ dns_domain }}.
 
 ; Default A record for domain
 @       IN      A       {{ default_ip }}

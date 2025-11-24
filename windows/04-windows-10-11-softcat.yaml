@@ -1,0 +1,146 @@
+############################################################
+# SECTION 1 — MAIN (Load plan, workload, access VM)
+############################################################
+- name: Main
+  hosts: localhost
+  gather_facts: yes
+
+  tasks:
+
+    - name: Load Plan
+      include_vars:
+        file: plan.yml
+        name: plan
+
+    - name: Load Workload
+      include_vars:
+        file: workload.yml
+        name: workload
+
+    - name: Load SSH key from secret
+      k8s_info:
+        api_version: v1
+        kind: Secret
+        name: ssh-credentials
+        namespace: openshift-mtv
+      register: ssh_credentials
+
+    - name: Write private key to file
+      copy:
+        dest: /tmp/id_rsa
+        content: "{{ ssh_credentials.resources[0].data.id_rsa | b64decode }}"
+        mode: 0600
+
+    - name: Add VM to inventory
+      add_host:
+        name: "{{ workload.vm.ipaddress }}"
+        ansible_user: root
+        ansible_ssh_private_key_file: /tmp/id_rsa
+        groups: vms
+
+
+############################################################
+# SECTION 3 — CONFIGURE STATIC IP ON WINDOWS
+############################################################
+- name: Configure a static IP address using win_powershell
+  hosts: vms
+  gather_facts: yes
+  collections:
+    - ansible.windows
+
+  vars:
+    interface_name: "Ethernet"
+    static_ip: "192.168.1.7"
+    prefix_length: 24
+    gateway: "192.168.1.1"
+    dns_server: "8.8.8.8"
+    proxy_url: "http://10.38.107.203:3120"
+
+  tasks:
+
+    - name: Set IP address, gateway, and DNS
+      ansible.windows.win_powershell:
+        script: |
+          $interface = Get-NetAdapter -Name "{{ interface_name }}"
+          Get-NetIPAddress -InterfaceIndex $interface.IfIndex -AddressFamily IPv4 | Remove-NetIPAddress -Confirm:$false
+          New-NetIPAddress -InterfaceIndex $interface.IfIndex -IPAddress "{{ static_ip }}" -PrefixLength {{ prefix_length }}
+          New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceAlias "{{ interface_name }}" -NextHop "{{ gateway }}"
+          Set-DnsClientServerAddress -InterfaceIndex $interface.IfIndex -ServerAddresses ("{{ dns_server }}")
+      async: 60
+      poll: 5
+      register: ip_config_output
+      run_once: true
+
+    - name: Display results
+      debug:
+        var: ip_config_output.output
+
+
+############################################################
+# SECTION 4 — CONFIGURE PROXY + RUN INSTALLERS
+############################################################
+- name: Configure proxy & install agents
+  hosts: vms
+  ignore_errors: true
+  gather_facts: yes
+  collections:
+    - ansible.windows
+
+  vars:
+    win_user: "redhat"
+    win_pass: "redhat"
+    proxy_url: "http://10.38.107.203:3120"
+
+  tasks:
+
+    - name: Set WinRM authentication
+      set_fact:
+        ansible_user: "{{ win_user }}"
+        ansible_password: "{{ win_pass }}"
+        ansible_connection: winrm
+        ansible_winrm_transport: basic
+        ansible_port: 5985
+
+    - name: Create C:\VCollab folder
+      ansible.windows.win_file:
+        path: C:\VCollab
+        state: directory
+
+    - name: Configure proxy (HKCU)
+      ansible.windows.win_regedit:
+        path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+        name: ProxyServer
+        data: "{{ proxy_url }}"
+        type: string
+
+    - name: Enable proxy
+      ansible.windows.win_regedit:
+        path: HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+        name: ProxyEnable
+        data: 1
+        type: dword
+
+    - name: Install environment + download & run agents
+      ansible.windows.win_shell: |
+        # Set env variable
+        [System.Environment]::SetEnvironmentVariable('VCOL_ENVIRONMENT', "prod", 'Machine')
+        $env:VCOL_ENVIRONMENT = "prod"
+
+        # Download Theia installer
+        Invoke-WebRequest -Uri "http://minio-api.apps.vcollab-cl1.cloud.vssi.com/agent-download/theiainstaller.ps1" -OutFile "C:\VCollab\theiainstaller.ps1"
+
+        # Execute Theia installer
+        Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -File `"C:\VCollab\theiainstaller.ps1`"" -Verb RunAs -WindowStyle Hidden
+
+        # Download agent.exe
+        Invoke-WebRequest -Uri "http://minio-api.apps.vcollab-cl1.cloud.vssi.com/agent-download/agentwinv1" -OutFile "C:\VCollab\agent.exe"
+
+        # Run Windows agent
+        Start-Process "C:\VCollab\agent.exe"
+
+        # Download SoftCat agent
+        Invoke-WebRequest -Uri "http://minio-api.apps.vcollab-cl1.cloud.vssi.com/software-catalogue/agent/softcatagentwinonly" -OutFile "C:\VCollab\softcatagent.exe"
+
+        # Execute SoftCat agent
+        Start-Process "C:\VCollab\softcatagent.exe"
+

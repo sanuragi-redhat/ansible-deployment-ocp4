@@ -3,14 +3,11 @@
   hosts: keepha
   become: yes
   vars:
-    vip: 192.168.1.246
-    interface: ens33
+    vip: 192.168.1.247
+    interface: enp1s0
     masters:
-      - 192.168.1.242
-      - 192.168.1.243
-      - 192.168.1.244
+      - 192.168.1.241
   roles:
     - haproxy
-    - keepalived
 
 
